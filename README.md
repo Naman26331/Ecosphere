@@ -19,6 +19,20 @@ router, the multipart parser and the charts are all hand-written in `src/` and
 `npm run reset` rebuilds the database from scratch. The seed is deterministic, so
 the numbers you rehearse against are the numbers on screen.
 
+### Signing in
+
+Every page and every API route sits behind a session — an unauthenticated
+visitor is redirected to `/login`. The seed ships **one owner account**:
+
+| Email | Password | Role |
+| --- | --- | --- |
+| `naman.gupta@gmail.com` | `eco1234` | officer (sees everything) |
+
+Everyone else joins through the **sign-up page** (`/register`): they pick a
+department, choose a password, and start as an `employee` with 0 XP. New accounts
+persist to the database and survive restarts; only `npm run reset` (or a Render
+redeploy on ephemeral disk) wipes them back to the single owner.
+
 ## What it does
 
 **1. OCR → carbon ledger** (`/environment`)
@@ -43,14 +57,42 @@ into SQL, runs it against live data, answers — then shows you the rows it used
 **4. Live department leaderboard** (`/`, `/gamification`)
 Recomputed on every verified transaction. No cached scores anywhere.
 
-**5. Reward Redemption & Gamification Inbox**
-Earned XP automatically unlocks badges. Spent points on rewards instantly deduct from your balance. The new in-app notification system alerts you immediately when a challenge is approved, a badge is unlocked, or an automated ERP transaction is logged.
+**5. Rewards catalog & redemption** (`/gamification`)
+Approved challenges credit two separate balances: **XP** (lifetime — drives badges
+and the leaderboard, only goes up) and **points** (a spendable wallet). The rewards
+catalog lets an employee spend points on a reward; redeeming deducts points and
+decrements stock **in one transaction**, and is blocked with a clear reason if the
+reward is out of stock, retired, or the balance is short. Verified against
+concurrent redemption of a last-in-stock item — exactly one succeeds, no overselling.
+
+**5b. Gamification Inbox**
+Earned XP automatically unlocks badges. The in-app notification system alerts you
+immediately when a challenge is approved, a badge is unlocked, or an automated ERP
+transaction is logged.
 
 **6. Automated ERP Webhook**
 A secure endpoint (`POST /api/erp/webhook`) allows external systems (Odoo, SAP, etc.) to push raw data (e.g. 500 liters of diesel purchased). EcoSphere auto-calculates the CO₂e using configured emission factors and posts it directly to the ledger, notifying managers automatically.
 
 **7. Custom Report Export**
 Generate CSV exports of the entire carbon ledger filtered by department, date, emission category, and Scope, ready for auditors.
+
+## Accounts & authentication
+
+- **Passwords** are hashed with `scrypt` and a per-user random salt (`src/lib/auth.js`),
+  never stored in plaintext. Wrong password and unknown email return the *same*
+  error, so the login screen can't be used to enumerate valid accounts.
+- **Sessions** are stateless, signed cookies: `<userId>.<expiry>.<HMAC>`. Editing the
+  cookie to impersonate another user fails the signature check; an expired token is
+  refused. Cookies are `HttpOnly` + `SameSite=Lax`, and `Secure` under
+  `NODE_ENV=production`.
+- **Sign-up** (`POST /api/auth/register`) forces `role = 'employee'` server-side and
+  never reads role/xp/points from the request body — closing the mass-assignment
+  hole where someone could POST `{"role":"admin"}`. The department id is validated
+  against the table, and signing up increments that department's headcount (the
+  denominator of the participation-rate KPI).
+- The login form is submitted by `fetch()`, with a classic capture-phase
+  `preventDefault` and `method="post"` as backstops — so a failed script load can
+  never fall back to a native GET that puts the password in the URL.
 
 ## How the ESG score is built
 
@@ -82,12 +124,14 @@ src/
   db.js                the ONLY file that knows the SQL engine
   seed.js              a deterministic year of history
   lib/esg.js           the scoring engine
-  lib/gamify.js        points, XP, badge auto-award (one transaction)
+  lib/gamify.js        points, XP, badge auto-award, reward redemption (one txn)
+  lib/auth.js          scrypt password hashing + signed session cookies
   lib/http.js          router, multipart parser, static server
   routes/index.js      every API endpoint
   ai/index.js          the provider seam  <-- read this before adding a key
   ai/providers/rules.js
-public/                the seven pages + one shared shell (assets/app.js)
+public/                login.html, register.html + the app pages
+  assets/app.js        one shared shell (nav, toasts, charts, API client)
 ```
 
 ## Adding a real model
