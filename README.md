@@ -43,6 +43,15 @@ into SQL, runs it against live data, answers — then shows you the rows it used
 **4. Live department leaderboard** (`/`, `/gamification`)
 Recomputed on every verified transaction. No cached scores anywhere.
 
+**5. Reward Redemption & Gamification Inbox**
+Earned XP automatically unlocks badges. Spent points on rewards instantly deduct from your balance. The new in-app notification system alerts you immediately when a challenge is approved, a badge is unlocked, or an automated ERP transaction is logged.
+
+**6. Automated ERP Webhook**
+A secure endpoint (`POST /api/erp/webhook`) allows external systems (Odoo, SAP, etc.) to push raw data (e.g. 500 liters of diesel purchased). EcoSphere auto-calculates the CO₂e using configured emission factors and posts it directly to the ledger, notifying managers automatically.
+
+**7. Custom Report Export**
+Generate CSV exports of the entire carbon ledger filtered by department, date, emission category, and Scope, ready for auditors.
+
 ## How the ESG score is built
 
 `src/lib/esg.js` is the only place a score is produced. Each pillar is built from
@@ -105,3 +114,21 @@ No route, no page, and no database code has to change.
 `src/db.js` is the only file that knows the engine — everything above it speaks
 `all()`, `get()`, `run()`, `tx()`. Reimplement those four against `pg` and the rest
 of the codebase is untouched. The schema in `src/schema.sql` is standard SQL.
+
+## Deployment & Hosting
+
+Because this project uses a local file-based SQLite database (`data/ecosphere.db`) and saves uploaded documents directly to disk (`data/uploads`), it requires a **persistent filesystem**.
+
+**Where to host:**
+- **VPS (Virtual Private Server):** DigitalOcean Droplets, AWS EC2, or Linode.
+- **PaaS with persistent storage:** Render (using a persistent disk) or Fly.io (using volumes).
+
+**Where NOT to host:**
+- Serverless platforms like Vercel, Netlify, or AWS Lambda (the filesystem is ephemeral and your database/uploads would be wiped on every request).
+
+**Publishing Steps:**
+1. Clone your repo onto your server.
+2. Run `npm run seed` to bootstrap the initial database.
+3. Keep the server running using a process manager like `pm2` (`pm2 start server.js --name ecosphere`).
+4. (Optional) Set up Nginx as a reverse proxy to route traffic from port 80/443 to port 3000.
+5. (Security) The `.gitignore` file already prevents your `data/` folder from being committed, ensuring you don't accidentally leak production data or overwrite it when pulling updates.

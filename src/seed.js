@@ -30,8 +30,8 @@ migrate();
 
 // Wipe in FK-safe order so re-seeding is always clean.
 for (const t of [
-  'audit_log', 'user_badges', 'participations', 'carbon_transactions',
-  'compliance_issues', 'reports', 'esg_goals', 'challenges', 'badges',
+  'audit_log', 'notifications', 'user_badges', 'redemptions', 'participations', 'carbon_transactions',
+  'compliance_issues', 'reports', 'esg_goals', 'challenges', 'badges', 'rewards',
   'policies', 'emission_factors', 'users', 'departments', 'settings',
 ]) {
   db.exec(`DELETE FROM ${t}`);
@@ -49,6 +49,7 @@ tx(() => {
     ['auto_approve_threshold', '0.85'], // AI confidence needed to skip human review
     ['ocr_auto_post_threshold', '0.80'],
     ['renewable_mix', '82'],
+    ['erp_api_key', 'eco-erp-demo-key-2026'], // rotate this from Settings UI in production
   ];
   for (const [k, v] of settings) run(`INSERT INTO settings (key, value) VALUES (?, ?)`, [k, v]);
 
