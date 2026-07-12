@@ -8,10 +8,10 @@
     "node": ">=22.5.0"
   },
   "scripts": {
-    "start": "node --no-warnings --env-file=.env server.js",
-    "dev": "node --no-warnings --env-file=.env --watch server.js",
+    "start": "node --no-warnings --env-file-if-exists=.env server.js",
+    "dev": "node --no-warnings --env-file-if-exists=.env --watch server.js",
     "build:css": "node node_modules/tailwindcss/lib/cli.js -i ./src/input.css -o ./public/assets/output.css",
-    "seed": "node --no-warnings --env-file=.env src/seed.js",
+    "seed": "node --no-warnings --env-file-if-exists=.env src/seed.js",
     "reset": "rm -f data/ecosphere.db && npm run seed"
   },
   "dependencies": {
