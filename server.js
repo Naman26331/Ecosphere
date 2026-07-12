@@ -20,7 +20,15 @@ const PORT = Number(process.env.PORT) || 3000;
 // Everything else -- every page, every endpoint, every uploaded bill -- requires
 // a signed-in user. Listing what's open, rather than what's protected, means a
 // route added later is private by default instead of accidentally public.
-const PUBLIC_PATHS = new Set(['/login', '/login.html', '/api/auth/login', '/api/health', '/api/erp/webhook']);
+const PUBLIC_PATHS = new Set([
+  '/login', '/login.html',
+  '/register', '/register.html',
+  '/api/auth/login',
+  '/api/auth/register',
+  '/api/auth/departments', // id + name only; the guarded route exposes far more
+  '/api/health',
+  '/api/erp/webhook',
+]);
 const isPublic = (pathname) =>
   PUBLIC_PATHS.has(pathname) || pathname.startsWith('/assets/');
 
@@ -60,8 +68,9 @@ const server = createServer(async (req, res) => {
       req.user = user; // routes read this instead of trusting a client-sent id
     }
 
-    // A signed-in user hitting /login has no reason to see it again.
-    if ((pathname === '/login' || pathname === '/login.html') && currentUser(req)) {
+    // A signed-in user has no reason to see the login or sign-up screens again.
+    const authPage = ['/login', '/login.html', '/register', '/register.html'];
+    if (authPage.includes(pathname) && currentUser(req)) {
       res.writeHead(302, { Location: '/' });
       return res.end();
     }

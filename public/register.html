@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Create account | EcoSphere Auto-Pilot</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+<script src="/assets/theme.js"></script>
+<link rel="stylesheet" href="/assets/styles.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+</head>
+<body class="bg-background text-on-surface font-sans min-h-screen">
+
+<div class="min-h-screen grid lg:grid-cols-2">
+
+  <!-- Brand panel. Hidden on phones: a sign-up screen on a 375px display should
+       be the form and nothing else. -->
+  <div class="hidden lg:flex flex-col justify-between bg-primary text-white p-12">
+    <div class="flex items-center gap-3">
+      <div class="w-11 h-11 bg-white/10 rounded-xl flex items-center justify-center">
+        <span class="material-symbols-outlined icon-filled text-white">eco</span>
+      </div>
+      <div>
+        <h1 class="text-headline-md font-bold leading-tight">EcoSphere</h1>
+        <p class="text-label-sm uppercase tracking-wider text-white/60">Auto-Pilot</p>
+      </div>
+    </div>
+
+    <div class="max-w-md">
+      <h2 class="text-headline-lg leading-tight">Join your organisation's ESG programme.</h2>
+      <p class="text-body-lg text-white/70 mt-4">
+        Take on sustainability challenges, submit proof from your phone, and turn
+        the points you earn into real rewards.
+      </p>
+      <ul class="mt-8 space-y-3 text-body-md text-white/80">
+        <li class="flex items-center gap-3">
+          <span class="material-symbols-outlined text-secondary-fixed-dim">rocket_launch</span>
+          Complete challenges, earn XP and points
+        </li>
+        <li class="flex items-center gap-3">
+          <span class="material-symbols-outlined text-secondary-fixed-dim">military_tech</span>
+          Unlock badges automatically as your XP grows
+        </li>
+        <li class="flex items-center gap-3">
+          <span class="material-symbols-outlined text-secondary-fixed-dim">redeem</span>
+          Redeem points for rewards from the catalog
+        </li>
+      </ul>
+    </div>
+
+    <p class="text-label-md text-white/40">40% Environmental · 30% Social · 30% Governance</p>
+  </div>
+
+  <!-- Form -->
+  <div class="flex items-center justify-center p-6 lg:p-12">
+    <div class="w-full max-w-sm">
+
+      <div class="flex lg:hidden items-center gap-3 mb-10">
+        <div class="w-11 h-11 bg-primary-container rounded-xl flex items-center justify-center">
+          <span class="material-symbols-outlined icon-filled text-on-primary-container">eco</span>
+        </div>
+        <div>
+          <h1 class="text-headline-md font-bold text-primary leading-tight">EcoSphere</h1>
+          <p class="text-label-sm uppercase tracking-wider text-on-surface-variant">Auto-Pilot</p>
+        </div>
+      </div>
+
+      <h2 class="text-headline-md text-on-surface">Create your account</h2>
+      <p class="text-body-md text-on-surface-variant mt-1 mb-8">
+        Already have one?
+        <a href="/login" class="text-secondary font-semibold hover:underline">Sign in</a>
+      </p>
+
+      <!-- Same protections as the login form: see the classic script below. -->
+      <form id="register-form" method="post" action="/register" class="space-y-4" novalidate>
+        <label class="block">
+          <span class="text-label-md text-on-surface-variant">Full name</span>
+          <input id="name" name="name" type="text" autocomplete="name" required
+                 placeholder="Priya Sharma"
+                 class="mt-1 w-full min-h-[48px] rounded-xl border-outline-variant bg-surface-container-low
+                        text-body-md focus:ring-secondary focus:border-secondary">
+        </label>
+
+        <label class="block">
+          <span class="text-label-md text-on-surface-variant">Work email</span>
+          <input id="email" name="email" type="email" autocomplete="username" required
+                 placeholder="you@vertex.example"
+                 class="mt-1 w-full min-h-[48px] rounded-xl border-outline-variant bg-surface-container-low
+                        text-body-md focus:ring-secondary focus:border-secondary">
+        </label>
+
+        <label class="block">
+          <span class="text-label-md text-on-surface-variant">Department</span>
+          <select id="department" name="department_id" required
+                  class="mt-1 w-full min-h-[48px] rounded-xl border-outline-variant bg-surface-container-low
+                         text-body-md focus:ring-secondary focus:border-secondary">
+            <option value="">Loading…</option>
+          </select>
+        </label>
+
+        <label class="block">
+          <span class="text-label-md text-on-surface-variant">Password</span>
+          <div class="relative mt-1">
+            <input id="password" name="password" type="password" autocomplete="new-password" required
+                   placeholder="At least 8 characters"
+                   class="w-full min-h-[48px] pr-12 rounded-xl border-outline-variant bg-surface-container-low
+                          text-body-md focus:ring-secondary focus:border-secondary">
+            <button type="button" id="toggle-pw" aria-label="Show password"
+                    class="absolute right-1 top-1/2 -translate-y-1/2 p-2 rounded-full
+                           text-on-surface-variant hover:bg-surface-container-high">
+              <span class="material-symbols-outlined text-xl">visibility</span>
+            </button>
+          </div>
+          <!-- Live strength feedback beats telling someone their password is too
+               short only after they've hit submit. -->
+          <div class="mt-2 flex items-center gap-2">
+            <div class="flex-1 h-1.5 bg-surface-container rounded-full overflow-hidden">
+              <div id="pw-bar" class="bar-fill h-full rounded-full bg-error" style="width:0%"></div>
+            </div>
+            <span id="pw-label" class="text-label-sm text-on-surface-variant w-20 text-right">—</span>
+          </div>
+        </label>
+
+        <p id="error" class="hidden flex items-start gap-2 text-body-md text-on-error-container
+                             bg-error-container rounded-xl px-4 py-3"></p>
+
+        <button id="submit" type="submit"
+                class="w-full min-h-[48px] flex items-center justify-center gap-2 bg-secondary text-white
+                       rounded-xl font-semibold shadow-sm hover:shadow-md active:scale-[0.98] transition
+                       disabled:opacity-60 disabled:active:scale-100">
+          <span id="submit-label">Create account</span>
+        </button>
+
+        <p class="text-label-md text-on-surface-variant text-center pt-1">
+          You'll join as an employee and start with 0 XP.
+        </p>
+      </form>
+
+    </div>
+  </div>
+</div>
+
+<!--
+  A CLASSIC script, not a module: it runs immediately and doesn't depend on
+  /assets/app.js loading. If the module 404s or fails to parse it never runs,
+  taking its submit handler with it -- and the browser then submits the form
+  itself, with the password in the query string. This makes that impossible.
+-->
+<script>
+  document.addEventListener('submit', function (e) { e.preventDefault(); }, true);
+
+  window.addEventListener('load', function () {
+    setTimeout(function () {
+      if (window.__registerReady) return;
+      var box = document.getElementById('error');
+      box.classList.remove('hidden');
+      box.innerHTML =
+        '<span class="material-symbols-outlined text-xl">cloud_sync</span>' +
+        '<span>The server is still waking up. Give it a few seconds, then reload.</span>';
+    }, 6000);
+  });
+</script>
+
+<script type="module">
+import { api, $, esc } from '/assets/app.js';
+
+window.__registerReady = true;
+
+const errorBox = $('#error');
+const submit = $('#submit');
+
+const showError = (msg) => {
+  errorBox.innerHTML =
+    `<span class="material-symbols-outlined text-xl shrink-0">error</span><span>${esc(msg)}</span>`;
+  errorBox.classList.remove('hidden');
+};
+
+// Departments come from the public endpoint -- it returns id and name only.
+try {
+  const departments = await api.get('/api/auth/departments');
+  $('#department').innerHTML =
+    '<option value="">Select your department</option>' +
+    departments.map((d) => `<option value="${d.id}">${esc(d.name)}</option>`).join('');
+} catch {
+  $('#department').innerHTML = '<option value="">Could not load departments</option>';
+}
+
+$('#toggle-pw').onclick = () => {
+  const pw = $('#password');
+  const icon = $('#toggle-pw').firstElementChild;
+  const hidden = pw.type === 'password';
+  pw.type = hidden ? 'text' : 'password';
+  icon.textContent = hidden ? 'visibility_off' : 'visibility';
+};
+
+// Strength is length + variety. Not a security control -- the server enforces the
+// 8-character minimum regardless -- purely so the user isn't guessing.
+const STRENGTH = [
+  { min: 0, label: '—',      width: 0,   color: 'bg-error' },
+  { min: 1, label: 'Weak',   width: 33,  color: 'bg-error' },
+  { min: 3, label: 'Fair',   width: 66,  color: 'bg-amber-500' },
+  { min: 4, label: 'Strong', width: 100, color: 'bg-secondary' },
+];
+
+$('#password').oninput = (e) => {
+  const v = e.target.value;
+
+  // Anything typed at all is at least "Weak" -- a meter that reads "—" while the
+  // user is actively typing looks broken rather than informative.
+  let score = v ? 1 : 0;
+  if (v.length >= 8) score++;
+  if (v.length >= 12) score++;
+  if (/[A-Z]/.test(v) && /[a-z]/.test(v)) score++;
+  if (/\d/.test(v) || /[^A-Za-z0-9]/.test(v)) score++;
+
+  const s = [...STRENGTH].reverse().find((x) => score >= x.min) ?? STRENGTH[0];
+  const bar = $('#pw-bar');
+  bar.style.width = `${s.width}%`;
+  bar.className = `bar-fill h-full rounded-full ${s.color}`;
+  $('#pw-label').textContent = v ? s.label : '—';
+};
+
+$('#register-form').onsubmit = async (e) => {
+  e.preventDefault();
+  errorBox.classList.add('hidden');
+
+  const payload = {
+    name: $('#name').value.trim(),
+    email: $('#email').value.trim(),
+    department_id: $('#department').value,
+    password: $('#password').value,
+  };
+
+  // Catch what we can before a round trip; the server validates all of it again.
+  if (!payload.name || !payload.email || !payload.department_id || !payload.password) {
+    showError('Please fill in every field.');
+    return;
+  }
+  if (payload.password.length < 8) {
+    showError('Password must be at least 8 characters.');
+    $('#password').focus();
+    return;
+  }
+
+  submit.disabled = true;
+  $('#submit-label').textContent = 'Creating account…';
+
+  try {
+    await api.post('/api/auth/register', payload);
+    location.href = '/'; // the server already signed us in
+  } catch (err) {
+    const unreachable = err instanceof TypeError || /fetch|network|load failed/i.test(err.message);
+    showError(unreachable
+      ? 'Could not reach the server — it may be waking up. Try again in a few seconds.'
+      : err.message);
+    submit.disabled = false;
+    $('#submit-label').textContent = 'Create account';
+  }
+};
+</script>
+</body>
+</html>

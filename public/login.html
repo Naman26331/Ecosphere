@@ -84,7 +84,7 @@
         <label class="block">
           <span class="text-label-md text-on-surface-variant">Email</span>
           <input id="email" name="email" type="email" autocomplete="username" required
-                 placeholder="alex.rivera@vertex.example"
+                 placeholder="you@vertex.example"
                  class="mt-1 w-full min-h-[48px] rounded-xl border-outline-variant bg-surface-container-low
                         text-body-md focus:ring-secondary focus:border-secondary">
         </label>
@@ -116,45 +116,10 @@
         </button>
       </form>
 
-      <!-- Demo accounts, so a judge can get in without being handed a password
-           verbally. Obviously this block goes when the app is not a demo. -->
-      <div class="mt-8 rounded-2xl border border-dashed border-outline-variant p-4">
-        <p class="text-label-sm font-bold text-on-surface-variant uppercase tracking-wide mb-3">
-          Demo accounts
-        </p>
-        <div class="space-y-2">
-          <button data-email="alex.rivera@vertex.example"
-                  class="demo w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl
-                         hover:bg-surface-container-low text-left transition">
-            <span class="min-w-0">
-              <span class="block text-body-md font-semibold text-on-surface truncate">Alex Rivera</span>
-              <span class="block text-label-md text-on-surface-variant truncate">Sustainability Officer · sees everything</span>
-            </span>
-            <span class="material-symbols-outlined text-on-surface-variant text-lg shrink-0">login</span>
-          </button>
-          <button data-email="priya.sharma@vertex.example"
-                  class="demo w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl
-                         hover:bg-surface-container-low text-left transition">
-            <span class="min-w-0">
-              <span class="block text-body-md font-semibold text-on-surface truncate">Priya Sharma</span>
-              <span class="block text-label-md text-on-surface-variant truncate">Manager, IT · approves challenge proof</span>
-            </span>
-            <span class="material-symbols-outlined text-on-surface-variant text-lg shrink-0">login</span>
-          </button>
-          <button data-email="aditi.rao@vertex.example"
-                  class="demo w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl
-                         hover:bg-surface-container-low text-left transition">
-            <span class="min-w-0">
-              <span class="block text-body-md font-semibold text-on-surface truncate">Aditi Rao</span>
-              <span class="block text-label-md text-on-surface-variant truncate">Employee, Manufacturing · submits proof</span>
-            </span>
-            <span class="material-symbols-outlined text-on-surface-variant text-lg shrink-0">login</span>
-          </button>
-        </div>
-        <p class="text-label-md text-on-surface-variant mt-3 pt-3 border-t border-outline-variant">
-          Password for all: <code class="font-mono font-bold text-on-surface">eco1234</code>
-        </p>
-      </div>
+      <p class="text-body-md text-on-surface-variant text-center mt-8">
+        Don't have an account?
+        <a href="/register" class="text-secondary font-semibold hover:underline">Create one</a>
+      </p>
 
     </div>
   </div>
@@ -211,16 +176,6 @@ $('#toggle-pw').onclick = () => {
   icon.textContent = hidden ? 'visibility_off' : 'visibility';
   $('#toggle-pw').setAttribute('aria-label', hidden ? 'Hide password' : 'Show password');
 };
-
-// One tap fills a demo account in.
-document.querySelectorAll('.demo').forEach((b) => {
-  b.onclick = () => {
-    $('#email').value = b.dataset.email;
-    $('#password').value = 'eco1234';
-    errorBox.classList.add('hidden');
-    $('#password').focus();
-  };
-});
 
 form.onsubmit = async (e) => {
   e.preventDefault();

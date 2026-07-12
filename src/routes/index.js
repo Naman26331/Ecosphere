@@ -59,6 +59,65 @@ export default function registerRoutes(r) {
     return { user };
   });
 
+  /**
+   * Departments, for the sign-up form's picker.
+   *
+   * Deliberately a SEPARATE, public endpoint returning only id and name --
+   * /api/departments sits behind the session guard and also exposes headcounts
+   * and department heads, which a stranger at the sign-up screen has no business
+   * seeing. Opening that route instead would have been the easy, wrong fix.
+   */
+  r.get('/api/auth/departments', () =>
+    all(`SELECT id, name FROM departments ORDER BY name`)
+  );
+
+  /** Create an account, then sign the new user straight in. */
+  r.post('/api/auth/register', async (req, res) => {
+    const b = await readJson(req);
+
+    const name = String(b.name ?? '').trim();
+    const email = String(b.email ?? '').trim().toLowerCase();
+    const password = String(b.password ?? '');
+
+    if (name.length < 2) throw bad('Please enter your full name.');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) throw bad('That does not look like a valid email address.');
+    if (password.length < 8) throw bad('Password must be at least 8 characters.');
+
+    // The department has to be a real one. Trusting the id blindly would let
+    // someone post department_id: 999 and land in a department that doesn't exist.
+    const deptId = num(b.department_id);
+    if (!deptId || !get(`SELECT id FROM departments WHERE id = ?`, [deptId])) {
+      throw bad('Choose a department.');
+    }
+
+    if (get(`SELECT id FROM users WHERE lower(email) = ?`, [email])) {
+      throw bad('An account already exists for that email. Sign in instead.', 409);
+    }
+
+    // Role is FORCED to employee and never read from the request. Otherwise
+    // anyone could POST {"role":"admin"} and sign themselves up as an admin --
+    // this is the classic mass-assignment privilege escalation.
+    const { id } = run(
+      `INSERT INTO users (name, email, role, department_id, xp, points_balance, password_hash)
+       VALUES (?, ?, 'employee', ?, 0, 0, ?)`,
+      [name, email, deptId, auth.hashPassword(password)]
+    );
+
+    // The headcount is the denominator of the participation-rate KPI, so a new
+    // joiner has to be counted or Social quietly drifts upward.
+    run(
+      `UPDATE departments SET employee_count = employee_count + 1 WHERE id = ?`,
+      [deptId]
+    );
+
+    audit(name, 'register', 'user', id, email);
+
+    // Sign them in immediately -- making someone type the password they just
+    // chose, twenty seconds after choosing it, is pure friction.
+    res.setHeader('Set-Cookie', auth.sessionCookie(auth.createToken(id)));
+    return { user: { id, name, email, role: 'employee' } };
+  });
+
   // =========================================================================
   // DASHBOARD
   // =========================================================================
