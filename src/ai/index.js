@@ -7,11 +7,11 @@
 // and no database code has to change.
 //
 //   AI_PROVIDER=rules    (default) heuristics + SQL. Works offline.
-//   AI_PROVIDER=gemini   -> src/ai/providers/gemini.js   [not wired yet]
-//   AI_PROVIDER=openai   -> src/ai/providers/openai.js   [not wired yet]
+//   AI_PROVIDER=nvidia   -> src/ai/providers/nvidia.js   (NVIDIA NIM — set NVIDIA_API_KEY)
 import * as rules from './providers/rules.js';
+import * as nvidia from './providers/nvidia.js';
 
-const PROVIDERS = { rules };
+const PROVIDERS = { rules, nvidia };
 
 const name = process.env.AI_PROVIDER || 'rules';
 const provider = PROVIDERS[name] ?? rules;

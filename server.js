@@ -46,7 +46,7 @@ const server = createServer(async (req, res) => {
     // if they asked for a page, and a 401 if they asked for data -- never a
     // half-rendered dashboard.
     if (!isPublic(pathname)) {
-      const user = currentUser(req);
+      const user = await currentUser(req);
       if (!user) {
         if (pathname.startsWith('/api/')) {
           return json(res, 401, { error: 'Not signed in' });
@@ -61,7 +61,7 @@ const server = createServer(async (req, res) => {
     }
 
     // A signed-in user hitting /login has no reason to see it again.
-    if ((pathname === '/login' || pathname === '/login.html') && currentUser(req)) {
+    if ((pathname === '/login' || pathname === '/login.html') && await currentUser(req)) {
       res.writeHead(302, { Location: '/' });
       return res.end();
     }
@@ -92,5 +92,5 @@ const server = createServer(async (req, res) => {
 server.listen(PORT, () => {
   console.log(`\n  EcoSphere Auto-Pilot`);
   console.log(`  running at  http://localhost:${PORT}`);
-  console.log(`  AI provider ${process.env.AI_PROVIDER ?? 'rules'} (offline)\n`);
+  console.log(`  AI provider ${process.env.AI_PROVIDER ?? 'rules'} (${process.env.AI_PROVIDER === 'nvidia' ? 'online' : 'offline'})\n`);
 });

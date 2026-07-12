@@ -160,6 +160,96 @@ export function toast(message, kind = 'success', ms = 4200) {
 }
 
 // ---------------------------------------------------------------------------
+// UX Helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Put a button into a loading state while an async action runs.
+ * Restores the button automatically when the promise resolves or rejects.
+ *
+ * Usage:
+ *   await setLoading(btn, () => api.post('/api/...'));
+ */
+export async function setLoading(btn, fn) {
+  if (!btn) return fn();
+  const original = btn.innerHTML;
+  const wasDisabled = btn.disabled;
+  btn.disabled = true;
+  btn.innerHTML = html`<span class="animate-spin material-symbols-outlined text-lg">autorenew</span>`;
+  try {
+    return await fn();
+  } finally {
+    btn.disabled = wasDisabled;
+    btn.innerHTML = original;
+  }
+}
+
+/**
+ * Show a lightweight confirmation modal before a destructive action.
+ * Returns a Promise<boolean>: true if the user confirmed, false if cancelled.
+ *
+ * Usage:
+ *   if (!await confirm('Reject this submission?', 'This cannot be undone.')) return;
+ */
+export function confirm(title, body = '') {
+  return new Promise((resolve) => {
+    const el = document.createElement('div');
+    el.className = 'fixed inset-0 z-[80] flex items-center justify-center p-4';
+    el.innerHTML = html`
+      <div class="absolute inset-0 bg-on-surface/40" data-cancel></div>
+      <div class="relative bg-surface rounded-3xl shadow-2xl max-w-sm w-full p-6 z-10">
+        <h3 class="text-title-lg font-bold text-on-surface mb-2">${esc(title)}</h3>
+        ${body ? `<p class="text-body-md text-on-surface-variant mb-6">${esc(body)}</p>` : '<div class="mb-4"></div>'}
+        <div class="flex gap-3 justify-end">
+          <button data-cancel class="px-5 py-2.5 rounded-full text-label-lg font-semibold
+                  text-on-surface-variant hover:bg-surface-container-high transition">Cancel</button>
+          <button data-ok class="px-5 py-2.5 rounded-full text-label-lg font-semibold
+                  bg-error text-on-error hover:opacity-90 active:scale-95 transition">Confirm</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(el);
+    document.body.style.overflow = 'hidden';
+    const close = (val) => {
+      document.body.style.overflow = '';
+      el.remove();
+      resolve(val);
+    };
+    el.querySelector('[data-ok]').onclick = () => close(true);
+    el.querySelectorAll('[data-cancel]').forEach(n => n.onclick = () => close(false));
+    document.addEventListener('keydown', function onKey(e) {
+      if (e.key === 'Escape') { document.removeEventListener('keydown', onKey); close(false); }
+    });
+  });
+}
+
+/**
+ * Validate required fields in a form and highlight blank ones.
+ * Returns true if all required inputs are filled.
+ *
+ * Usage:
+ *   if (!validateForm(form)) return;
+ */
+export function validateForm(form) {
+  let valid = true;
+  form.querySelectorAll('[required]').forEach(input => {
+    const empty = !input.value.trim();
+    input.classList.toggle('ring-2', empty);
+    input.classList.toggle('ring-error', empty);
+    input.classList.toggle('border-error', empty);
+    if (empty) {
+      valid = false;
+      // Remove highlight once user starts typing
+      input.addEventListener('input', () => {
+        input.classList.remove('ring-2', 'ring-error', 'border-error');
+      }, { once: true });
+    }
+  });
+  if (!valid) toast('Please fill in all required fields.', 'error', 3000);
+  return valid;
+}
+
+// ---------------------------------------------------------------------------
 // Charts -- small SVG builders, no charting library
 // ---------------------------------------------------------------------------
 
@@ -403,6 +493,9 @@ export function mountShell(active, { title, subtitle } = {}) {
 
   $('#ask-ai-btn').onclick = () => openChat();
 
+  // Wire notification bell to open the dropdown panel.
+  document.querySelector('[aria-label="Notifications"]').onclick = () => openNotifications();
+
   $('#logout-btn').onclick = async () => {
     await api.post('/api/auth/logout').catch(() => {});
     location.href = '/login';
@@ -437,10 +530,92 @@ async function hydrateUser() {
     $('#nav-role').textContent = user.department
       ? `${user.role} · ${user.department}`
       : user.role;
+
+    // Poll the notification count and light up the bell.
+    refreshNotifBell();
+    setInterval(refreshNotifBell, 60_000); // refresh every minute
   } catch {
     // The session died under us (expired, or signed out in another tab).
     location.href = '/login';
   }
+}
+
+/** Fetch unread count and toggle the red dot on the bell icon. */
+async function refreshNotifBell() {
+  try {
+    const notifs = await api.get('/api/notifications?unread=true');
+    const dot = $('#notif-dot');
+    if (!dot) return;
+    const count = Array.isArray(notifs) ? notifs.length : 0;
+    dot.classList.toggle('hidden', count === 0);
+    dot.title = count > 0 ? `${count} unread notification${count === 1 ? '' : 's'}` : '';
+  } catch { /* silent */ }
+}
+
+/** Open the notifications panel. Wired to the bell button in the shell. */
+function openNotifications() {
+  if ($('#notif-panel')) { $('#notif-panel').remove(); return; }
+
+  const panel = document.createElement('div');
+  panel.id = 'notif-panel';
+  panel.className = 'fixed top-16 right-4 z-[60] w-80 sm:w-96 bg-surface rounded-2xl shadow-2xl border border-outline-variant overflow-hidden';
+  panel.innerHTML = html`
+    <div class="flex items-center justify-between px-4 py-3 border-b border-outline-variant">
+      <p class="font-semibold text-on-surface">Notifications</p>
+      <button id="mark-all-read" class="text-label-sm text-secondary hover:underline">Mark all read</button>
+    </div>
+    <div id="notif-list" class="overflow-y-auto max-h-[60vh] divide-y divide-outline-variant">
+      <div class="py-10 text-center text-on-surface-variant text-body-md">Loading…</div>
+    </div>
+  `;
+  document.body.appendChild(panel);
+
+  // Close on outside click
+  const closeOutside = (e) => { if (!panel.contains(e.target)) { panel.remove(); document.removeEventListener('click', closeOutside); } };
+  setTimeout(() => document.addEventListener('click', closeOutside), 0);
+
+  // Mark all read
+  panel.querySelector('#mark-all-read').onclick = async () => {
+    await api.post('/api/notifications/read-all').catch(() => {});
+    refreshNotifBell();
+    panel.remove();
+    toast('All notifications marked as read.', 'info');
+  };
+
+  // Load notifications
+  api.get('/api/notifications').then(notifs => {
+    const list = panel.querySelector('#notif-list');
+    if (!notifs.length) {
+      list.innerHTML = html`
+        <div class="flex flex-col items-center py-10 text-center">
+          <span class="material-symbols-outlined text-4xl text-outline-variant mb-2">notifications_none</span>
+          <p class="text-body-md text-on-surface-variant">You're all caught up!</p>
+        </div>`;
+      return;
+    }
+    list.innerHTML = notifs.map(n => html`
+      <div class="flex gap-3 px-4 py-3 ${n.read ? '' : 'bg-secondary-container/20'} hover:bg-surface-container-low transition cursor-pointer"
+           data-notif-id="${n.id}" data-link="${n.link ?? ''}">
+        <span class="material-symbols-outlined text-secondary shrink-0 mt-0.5">${esc(n.icon)}</span>
+        <div class="flex-1 min-w-0">
+          <p class="text-body-md font-semibold text-on-surface truncate">${esc(n.title)}</p>
+          <p class="text-label-md text-on-surface-variant mt-0.5">${esc(n.message)}</p>
+          <p class="text-label-sm text-outline mt-1">${fmt.ago(n.created_at)}</p>
+        </div>
+        ${n.read ? '' : '<span class="w-2 h-2 rounded-full bg-secondary shrink-0 mt-2"></span>'}
+      </div>
+    `).join('');
+
+    // Click to mark read + navigate
+    list.querySelectorAll('[data-notif-id]').forEach(row => {
+      row.onclick = async () => {
+        await api.post(`/api/notifications/${row.dataset.notifId}/read`).catch(() => {});
+        refreshNotifBell();
+        if (row.dataset.link) location.href = row.dataset.link;
+        else panel.remove();
+      };
+    });
+  }).catch(() => {});
 }
 
 // ---------------------------------------------------------------------------

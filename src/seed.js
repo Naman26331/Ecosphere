@@ -1,11 +1,41 @@
 // Seeds a full year of believable ESG history.
 //
 // Deterministic on purpose: a seeded PRNG means `npm run reset` reproduces the
-// exact same database every time, so the numbers you rehearse the demo against
-// are the numbers on screen when you present.
-import { migrate, run, all, get, tx } from './db.js';
-import db from './db.js';
+// exact same database every time.
+import { DatabaseSync } from 'node:sqlite';
+import { readFileSync, mkdirSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { hashPassword } from './lib/auth.js';
+
+const root = dirname(dirname(fileURLToPath(import.meta.url)));
+const DB_PATH = join(root, 'data', 'ecosphere.db');
+mkdirSync(dirname(DB_PATH), { recursive: true });
+
+const db = new DatabaseSync(DB_PATH);
+db.exec('PRAGMA foreign_keys = ON');
+
+const migrate = () => {
+  db.exec(readFileSync(join(root, 'src', 'schema.sql'), 'utf8'));
+};
+
+const all = (sql, params = []) => db.prepare(sql).all(...params);
+const get = (sql, params = []) => db.prepare(sql).get(...params) ?? null;
+const run = (sql, params = []) => {
+  const r = db.prepare(sql).run(...params);
+  return { id: Number(r.lastInsertRowid), changes: Number(r.changes) };
+};
+const tx = (fn) => {
+  db.exec('BEGIN');
+  try {
+    const out = fn();
+    db.exec('COMMIT');
+    return out;
+  } catch (err) {
+    db.exec('ROLLBACK');
+    throw err;
+  }
+};
 
 // Mulberry32 -- tiny, fast, and stable across Node versions.
 let _s = 20260712;
@@ -24,7 +54,7 @@ const daysAgo = (n) => {
   return d;
 };
 
-console.log('EcoSphere :: seeding');
+console.log('EcoSphere :: seeding (SQLite local)');
 
 migrate();
 
@@ -39,23 +69,20 @@ for (const t of [
 
 tx(() => {
   // --- Settings -------------------------------------------------------------
-  // The 40/30/30 split lives here, not in code, so Settings can retune it.
   const settings = [
     ['weight_environmental', '40'],
     ['weight_social', '30'],
     ['weight_governance', '30'],
     ['org_name', 'Vertex Industries Ltd.'],
     ['reporting_year', '2026'],
-    ['auto_approve_threshold', '0.85'], // AI confidence needed to skip human review
+    ['auto_approve_threshold', '0.85'],
     ['ocr_auto_post_threshold', '0.80'],
     ['renewable_mix', '82'],
-    ['erp_api_key', 'eco-erp-demo-key-2026'], // rotate this from Settings UI in production
+    ['erp_api_key', 'eco-erp-demo-key-2026'],
   ];
   for (const [k, v] of settings) run(`INSERT INTO settings (key, value) VALUES (?, ?)`, [k, v]);
 
   // --- Departments ----------------------------------------------------------
-  // employee_count is written back from the real users table further down, so
-  // the participation-rate denominator can never drift from the headcount.
   const departments = [
     ['Manufacturing', 'MFG', 'Rajesh Iyer'],
     ['Logistics', 'LOG', 'Sara Chen'],
@@ -97,7 +124,6 @@ tx(() => {
   }
 
   // --- Users ----------------------------------------------------------------
-  // The named leads appear on screen (leaderboards, issue owners, activity feed).
   const leads = [
     ['Alex Rivera', 'officer', 'CORP'], ['Priya Sharma', 'manager', 'IT'],
     ['Rajesh Iyer', 'manager', 'MFG'], ['Sara Chen', 'manager', 'LOG'],
@@ -112,18 +138,12 @@ tx(() => {
     ['Ethan Brooks', 'employee', 'SLS'], ['Meera Joshi', 'employee', 'IT'],
   ];
 
-  // ...and the rest of the workforce is generated up to each department's target
-  // headcount, because "% of employees participating" is only a real metric if
-  // the employees actually exist as rows.
   const HEADCOUNT = { MFG: 120, LOG: 60, SLS: 80, IT: 45, CORP: 30, 'R&D': 35 };
   const FIRST = ['Arjun','Maya','Kabir','Leila','Noah','Sofia','Rohan','Elena','Tariq','Ava','Jonas','Isha','Pedro','Anya','Samir','Clara','Dev','Nadia','Felix','Zara','Ravi','Mila','Owen','Divya','Hugo','Reem','Kian','Lucia','Amir','Freya'];
   const LAST  = ['Kapoor','Mendes','Okafor','Larsen','Ahmed','Rossi','Nakamura','Silva','Haas','Kowalski','Batista','Fischer','Nair','Duarte','Petrov','Osei','Lindqvist','Varga','Moreau','Bianchi','Sethi','Vargas','Jensen','Iqbal','Costa','Weber','Bhat','Ferreira','Novak','Adeyemi'];
 
-  // Everyone gets the same demo password. It is hashed with a per-user random
-  // salt before it touches the database -- the plaintext below never lands in a
-  // column, so two people sharing a password still get two different hashes.
   const DEMO_PASSWORD = 'eco1234';
-  const demoHash = () => hashPassword(DEMO_PASSWORD); // re-salted every call
+  const demoHash = () => hashPassword(DEMO_PASSWORD);
 
   const userIds = [];
   const seen = new Set();
@@ -131,12 +151,18 @@ tx(() => {
     let base = name.toLowerCase().replace(/[^a-z ]/g, '').replace(/ +/g, '.');
     let email = `${base}@vertex.example`;
     let n = 2;
-    while (seen.has(email)) email = `${base}${n++}@vertex.example`; // collisions are inevitable
+    while (seen.has(email)) email = `${base}${n++}@vertex.example`;
     seen.add(email);
+    
+    const dId = deptId[code];
+    if (!dId) {
+      throw new Error(`Department code ${code} not found in deptId. Available keys: ${Object.keys(deptId).join(', ')}`);
+    }
+
     const { id } = run(
       `INSERT INTO users (name, email, role, department_id, xp, password_hash)
        VALUES (?, ?, ?, ?, 0, ?)`,
-      [name, email, role, deptId[code], demoHash()]
+      [name, email, role, dId, demoHash()]
     );
     userIds.push({ id, code, role, email });
   };
@@ -150,7 +176,7 @@ tx(() => {
     }
   }
 
-  // Headcount == rows. Now participation_rate means what it says.
+  // Headcount == rows.
   for (const code of Object.keys(deptId)) {
     run(`UPDATE departments SET employee_count = ? WHERE id = ?`, [
       userIds.filter((u) => u.code === code).length,
@@ -159,8 +185,6 @@ tx(() => {
   }
 
   // --- Carbon transactions: 12 months of activity ---------------------------
-  // Emissions trend downwards over the year so the "we are improving" story the
-  // dashboard tells is actually present in the data, not asserted on top of it.
   const activityMix = {
     MFG: ['Grid electricity', 'Diesel', 'Natural gas', 'Landfill waste'],
     LOG: ['Diesel', 'Road freight', 'Petrol'],
@@ -171,79 +195,57 @@ tx(() => {
   };
   const baseVolume = { MFG: 3.0, LOG: 1.8, SLS: 1.0, IT: 0.6, CORP: 0.5, 'R&D': 0.7 };
 
-  // Typical volume per logging cycle, before the department scale and decay.
-  // Each department logs EVERY activity it runs, every cycle -- a plant meters
-  // its electricity and its diesel and its gas. Picking one at random instead
-  // made each department's series so lumpy that the downward trend vanished
-  // into the noise, and goal progress became meaningless.
-  const BASE_QTY = {
-    'Grid electricity': 1500,
-    'Solar (on-site)': 650,
-    Diesel: 260,
-    Petrol: 80,
-    'Natural gas': 400,
-    'Air travel': 1900,
-    'Road freight': 1100,
-    'Landfill waste': 375,
-    'Recycled waste': 190,
-    'Water supply': 60,
+  const addRow = (code, fId, days, co2, type = 'manual', documentRef = null, confidence = null) => {
+    const activeDate = iso(daysAgo(days));
+    const factor = factorId[fId];
+    const qty = Math.round((co2 / factor.factor) * 10) / 10;
+    const finalCo2 = Math.round(qty * factor.factor * 100) / 100;
+
+    const uId = pick(userIds.filter((u) => u.code === code)).id;
+
+    run(
+      `INSERT INTO carbon_transactions (department_id, emission_factor_id, user_id, activity_date, quantity, co2e_kg, source, document_ref, ai_confidence, status, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'verified', datetime('now', ?))`,
+      [deptId[code], factor.id, uId, activeDate, qty, finalCo2, type, documentRef, confidence, `-${days} days`]
+    );
   };
 
-  let txCount = 0;
-  for (let day = 364; day >= 0; day -= 6) {
-    // 0 = a year ago, 1 = today. Emissions decay 35% across the window -- a
-    // steep but defensible corporate reduction, and steep enough that the signal
-    // clears the month-to-month noise in the ledger.
-    const progress = 1 - day / 364;
-    const decay = 1 - 0.35 * progress;
+  // Populate 365 days of activity
+  for (let d = 360; d >= 0; d--) {
+    const isWeekend = [0, 6].includes(daysAgo(d).getDay());
+    const monthlyTrend = 1.0 - (360 - d) / 360 * 0.25; // 25% reduction over the year
 
-    for (const code of Object.keys(activityMix)) {
-      for (const activity of activityMix[code]) {
-        if (rnd() > 0.8) continue; // the odd missed reading, as in real life
+    for (const [code, activities] of Object.entries(activityMix)) {
+      if (isWeekend && code !== 'MFG') continue;
 
-        const f = factorId[activity];
-        // +/-15% jitter keeps it lifelike without drowning the trend.
-        const scale = baseVolume[code] * decay * between(0.85, 1.15);
-        const quantity = Math.round(BASE_QTY[activity] * scale);
+      const multiplier = between(0.7, 1.3) * baseVolume[code] * monthlyTrend;
 
-        // Roughly 3 in 5 rows came in through the OCR pipeline rather than typing.
-        const viaOcr = rnd() < 0.6;
-        const conf = viaOcr ? between(0.82, 0.98) : null;
-        const status = viaOcr && conf < 0.85 ? 'pending' : 'verified';
-        const author = pick(userIds.filter((u) => u.code === code));
+      for (const act of activities) {
+        if (rnd() > 0.85) continue; // skip some days
 
-        run(
-          `INSERT INTO carbon_transactions
-             (department_id, emission_factor_id, user_id, activity_date, quantity,
-              co2e_kg, source, document_ref, ai_confidence, status, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [
-            deptId[code],
-            f.id,
-            author.id,
-            iso(daysAgo(day)),
-            quantity,
-            Math.round(quantity * f.factor * 100) / 100,
-            viaOcr ? 'ocr' : 'manual',
-            viaOcr ? `${activity.toLowerCase().replace(/[^a-z]/g, '-')}-${iso(daysAgo(day))}.pdf` : null,
-            conf ? Math.round(conf * 100) / 100 : null,
-            status,
-            iso(daysAgo(day)),
-          ]
-        );
-        txCount++;
+        let scale = 1.0;
+        if (act === 'Grid electricity') scale = 1500;
+        else if (act === 'Diesel') scale = 200;
+        else if (act === 'Natural gas') scale = 300;
+        else if (act === 'Water supply') scale = 80;
+        else if (act === 'Air travel') scale = 2500;
+        else if (act === 'Petrol') scale = 80;
+        else if (act === 'Road freight') scale = 1200;
+        else scale = 100;
+
+        const co2 = multiplier * scale;
+
+        // Make some of them OCR inputs
+        const isOcr = rnd() > 0.90 && d > 5;
+        const type = isOcr ? 'ocr' : 'manual';
+        const doc = isOcr ? `bill-${code.toLowerCase()}-${act.toLowerCase().replace(/[^a-z]/g,'')}-${d}.pdf` : null;
+        const conf = isOcr ? between(0.82, 0.98) : null;
+
+        addRow(code, act, d, co2, type, doc, conf);
       }
     }
   }
 
-  // --- Goals ----------------------------------------------------------------
-  // Goals are measured on a 90-day run-rate, and BOTH numbers come out of the
-  // ledger we just wrote:
-  //   baseline_co2 = what this department emitted in its first 90-day window
-  //   current_co2  = what it emitted in the last 90 days
-  //   target_co2   = baseline minus the reduction this goal commits to
-  // Deriving both from the same window is the whole point -- otherwise progress
-  // compares an annual baseline against a quarterly actual and pins at 100%.
   const windowEmissions = (code, fromDays, toDays) =>
     Math.round(
       (get(
@@ -256,307 +258,247 @@ tx(() => {
         10
     ) / 10;
 
-  // [name, dept, committed reduction vs baseline, deadline]
-  // Emissions fall ~26% between the two windows, so a goal committing to less
-  // than that lands "completed", one committing to far more is still in flight,
-  // and the one whose deadline has already passed is "at risk". That spread is
-  // deliberate: a board of goals that are all green is a board nobody believes.
+  // --- Goals ----------------------------------------------------------------
   const goals = [
-    ['EV Fleet Conversion', 'LOG', 0.28, iso(daysAgo(-240))],
-    ['Logistics Decarbonisation', 'LOG', 0.32, iso(daysAgo(-172))],
-    ['HQ Energy Retrofit', 'CORP', 0.36, iso(daysAgo(-40))],
-    ['Zero Landfill Manufacturing', 'MFG', 0.40, iso(daysAgo(-120))],
-    ['Renewable Power Purchase', 'IT', 0.45, iso(daysAgo(-90))],
-    ['Scope 3 Supplier Audit', 'MFG', 0.60, iso(daysAgo(30))], // deadline already gone
+    ['Scope 1 & 2 Reduction', 'MFG', 0.20, 90],
+    ['Green Logistics Transition', 'LOG', 0.15, 120],
+    ['Sustainable IT Operations', 'IT', 0.30, 90],
+    ['R&D Carbon Efficiency', 'R&D', 0.25, 180],
+    ['Net Zero Travel Policy', 'SLS', 0.40, 150],
+    ['Zero Waste Headquarters', 'CORP', 0.50, 90],
   ];
+  for (const [name, code, targetRed, daysLimit] of goals) {
+    const base = windowEmissions(code, 360, 270);
+    const target = Math.round(base * (1.0 - targetRed) * 10) / 10;
+    const cur = windowEmissions(code, 90, 0);
 
-  for (const [name, code, reduction, deadline] of goals) {
-    const baseline = windowEmissions(code, 365, 275); // the same quarter, a year ago
-    const current = windowEmissions(code, 90, 0);     // the quarter just gone
-    const target = Math.round(baseline * (1 - reduction) * 10) / 10;
+    const deadline = iso(daysAgo(-daysLimit));
+    const isMissed = daysLimit < 0;
+    const isCompleted = cur <= target;
 
-    // Status is computed, never authored.
-    const span = baseline - target;
-    const done = span > 0 ? (baseline - current) / span : 0;
-    const overdue = new Date(deadline) < new Date();
-
-    let status;
-    if (current <= target) status = 'completed';
-    else if (overdue || done < 0.25) status = 'at_risk';
-    else if (done >= 0.55) status = 'on_track';
-    else status = 'pending';
+    let status = 'on_track';
+    if (isCompleted) status = 'completed';
+    else if (isMissed || cur > base * 1.1) status = 'at_risk';
 
     run(
       `INSERT INTO esg_goals (name, department_id, baseline_co2, target_co2, current_co2, deadline, status)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [name, deptId[code], baseline, target, current, deadline, status]
-    );
-  }
-
-  // --- Badges ---------------------------------------------------------------
-  const badges = [
-    ['First Step', 'Complete your first sustainability challenge', 'footprint', 'bronze', 50],
-    ['Green Sprout', 'Reach 150 XP of verified impact', 'potted_plant', 'bronze', 150],
-    ['Carbon Cutter', 'Reach 300 XP of verified impact', 'co2', 'silver', 300],
-    ['Eco Warrior', 'Reach 600 XP of verified impact', 'shield_person', 'gold', 600],
-    ['Planet Guardian', 'Reach 1000 XP of verified impact', 'public', 'platinum', 1000],
-  ];
-  for (const [name, desc, icon, tier, xp] of badges) {
-    run(
-      `INSERT INTO badges (name, description, icon, tier, xp_threshold) VALUES (?, ?, ?, ?, ?)`,
-      [name, desc, icon, tier, xp]
+      [name, deptId[code], base, target, cur, deadline, status]
     );
   }
 
   // --- Challenges -----------------------------------------------------------
   const challenges = [
-    ['Tree Plantation Drive', 'Tree Plantation', 'Plant a sapling and upload a photo with the planted tree.', 100, 120, 'park'],
-    ['Blood Donation Camp', 'Blood Donation', 'Donate blood at any certified camp and upload your donor slip.', 150, 180, 'bloodtype'],
-    ['Beach Cleanup Sprint', 'Beach Cleanup', 'Join a shoreline cleanup. Upload a photo of collected waste.', 120, 140, 'waves'],
-    ['ESG Foundations Workshop', 'ESG Workshop', 'Attend the 90-minute ESG foundations session.', 80, 90, 'school'],
-    ['Zero-Emission Commute', 'Commute', 'Cycle, walk or take public transport for a full week.', 90, 100, 'directions_bike'],
-    ['Circular Office Audit', 'Waste Reduction', 'Audit your floor’s waste segregation and log the findings.', 110, 130, 'recycling'],
-    ['Energy Saver Pro', 'Energy Saving', 'Cut your workstation’s standby draw. Upload a meter reading.', 70, 80, 'bolt'],
+    ['Cycle to Work', 'Commute', 'Ditch the car and bike to work this week.', 50, 100, 'directions_bike', 30, 0],
+    ['Tree Plantation Drive', 'Tree Plantation', 'Plant a sapling at home or in your community.', 80, 150, 'park', 60, 30],
+    ['Energy Audit', 'Energy Saving', 'Report three electrical items left on standby in your floor.', 30, 60, 'tungsten', 15, -10],
+    ['Zero Plastic Week', 'Waste Reduction', 'Bring your own container for lunch every day.', 40, 80, 'eco', 7, -5],
+    ['CSR ESG Seminar', 'ESG Workshop', 'Attend the corporate governance masterclass.', 25, 50, 'school', 1, -20],
+    ['Beach Cleanup', 'Beach Cleanup', 'Join the weekend beach cleanup drive.', 100, 200, 'waves', 2, -45],
   ];
-  const challengeIds = [];
-  for (const [title, category, desc, points, xp, icon] of challenges) {
+  const chalId = {};
+  for (const [title, cat, desc, pts, xp, icon, duration, startOffset] of challenges) {
+    const start = iso(daysAgo(startOffset + duration));
+    const end = iso(daysAgo(startOffset));
+    const status = startOffset < 0 ? 'closed' : 'open';
+
     const { id } = run(
       `INSERT INTO challenges (title, category, description, points, xp, icon, start_date, end_date, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'open')`,
-      [title, category, desc, points, xp, icon, iso(daysAgo(60)), iso(daysAgo(-30))]
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [title, cat, desc, pts, xp, icon, start, end, status]
     );
-    challengeIds.push({ id, points, xp });
+    chalId[title] = { id, cat, pts, xp };
   }
 
-  // --- Participations -------------------------------------------------------
-  // Some auto-approved by AI vision, some rejected, some still queued -- so the
-  // Social approval screen has real work sitting in it during the demo.
-  // The three accounts on the login screen are guaranteed a few APPROVED
-  // challenges, so whoever demos this actually has points to spend. The balance
-  // is still earned the normal way -- nothing is handed to them directly, so the
-  // earned-minus-spent reconciliation still holds.
-  const DEMO_LOGINS = new Set([
-    'alex.rivera@vertex.example',
-    'priya.sharma@vertex.example',
-    'aditi.rao@vertex.example',
-  ]);
-
+  // --- Participations (Challenge Submissions) -------------------------------
+  const approvedList = [];
   for (const u of userIds) {
-    const isDemo = DEMO_LOGINS.has(u.email);
-    const n = isDemo ? 4 : Math.floor(between(0, 4.5));
-    const taken = new Set();
-    for (let i = 0; i < n; i++) {
-      const c = isDemo ? challengeIds[i % challengeIds.length] : pick(challengeIds);
-      if (taken.has(c.id)) continue;
-      taken.add(c.id);
+    for (const [title, chal] of Object.entries(chalId)) {
+      if (rnd() > 0.4) continue; // skip some challenge enrollments
 
-      const roll = rnd();
-      const status = isDemo
-        ? 'approved'
-        : roll < 0.66 ? 'approved' : roll < 0.85 ? 'pending' : 'rejected';
-      const conf = status === 'approved' ? between(0.86, 0.99)
-        : status === 'pending' ? between(0.55, 0.84)
-        : between(0.1, 0.4);
+      const isRndLead = leads.some(([name]) => name === u.name);
+      const isPast = ['Energy Audit', 'CSR ESG Seminar', 'Beach Cleanup'].includes(title);
+
+      const days = isPast ? between(10, 60) : between(1, 10);
+      const submittedAt = iso(daysAgo(days));
+
+      let status = 'approved';
+      if (!isPast && rnd() > 0.8) status = 'pending';
+      if (isRndLead && status === 'approved' && rnd() > 0.95) status = 'rejected';
+
+      const isVerified = status === 'approved';
+      const aiConf = isVerified ? between(0.86, 0.98) : between(0.40, 0.72);
+      const aiReason = isVerified 
+        ? `Verified: Visual match for "${chal.cat}" detected.` 
+        : `Uncertain: Upload does not clearly show activity matching "${chal.cat}".`;
+
+      const ptsAwarded = isVerified ? chal.pts : 0;
+      const proofUrl = `/uploads/proof-${u.id}-${chal.id}.jpg`;
 
       run(
-        `INSERT INTO participations
-           (challenge_id, user_id, proof_url, status, ai_confidence, ai_reason,
-            points_awarded, submitted_at, reviewed_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          c.id,
-          u.id,
-          `/uploads/proof-${c.id}-${u.id}.jpg`,
-          status,
-          Math.round(conf * 100) / 100,
-          status === 'approved' ? 'Image contents match the challenge category.'
-            : status === 'pending' ? 'Below auto-approval confidence, queued for review.'
-            : 'Image contents do not match the challenge category.',
-          status === 'approved' ? c.points : 0,
-          iso(daysAgo(Math.floor(between(1, 55)))),
-          status === 'pending' ? null : iso(daysAgo(Math.floor(between(0, 20)))),
-        ]
+        `INSERT INTO participations (challenge_id, user_id, proof_url, status, ai_confidence, ai_reason, points_awarded, submitted_at, reviewed_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now', ?), ?)`,
+        [chal.id, u.id, proofUrl, status, aiConf, aiReason, ptsAwarded, `-${days} days`, isVerified ? submittedAt : null]
       );
 
-      // Same rule as the live approve() path: XP and spendable points together.
-      if (status === 'approved') {
-        run(`UPDATE users SET xp = xp + ?, points_balance = points_balance + ? WHERE id = ?`, [
-          c.xp,
-          c.points,
-          u.id,
-        ]);
+      if (isVerified) {
+        approvedList.push({ uId: u.id, points: chal.pts, xp: chal.xp, title });
       }
     }
   }
 
-  // Award every badge each user's XP has already earned.
-  for (const u of userIds) {
-    const { xp } = get(`SELECT xp FROM users WHERE id = ?`, [u.id]);
-    for (const b of all(`SELECT id FROM badges WHERE xp_threshold <= ?`, [xp])) {
-      run(
-        `INSERT OR IGNORE INTO user_badges (user_id, badge_id) VALUES (?, ?)`,
-        [u.id, b.id]
-      );
-    }
+  // --- Badges ---------------------------------------------------------------
+  const badges = [
+    ['Eco Starter', 'Earned your first 100 XP.', 'energy_savings_leaf', 'bronze', 100],
+    ['Carbon Crusader', 'Helped log emission records and verified PUE compliance.', 'co2', 'silver', 300],
+    ['Susty Champ', 'Active in community beach cleanups and trees plantation drives.', 'volunteer_activism', 'gold', 600],
+    ['ESG Ambassador', 'The highest level of corporate ESG governance leadership.', 'shield_with_heart', 'platinum', 1000],
+  ];
+  const badgeId = {};
+  for (const [name, desc, icon, tier, xp] of badges) {
+    const { id } = run(
+      `INSERT INTO badges (name, description, icon, tier, xp_threshold) VALUES (?, ?, ?, ?, ?)`,
+      [name, desc, icon, tier, xp]
+    );
+    badgeId[name] = { id, xp };
   }
 
   // --- Rewards --------------------------------------------------------------
-  // Two are seeded deliberately un-redeemable so both refusal paths are real and
-  // demonstrable: one is OUT OF STOCK, one is priced above what any employee has.
   const rewards = [
-    ['Reusable Steel Bottle', 'EcoSphere-branded insulated bottle, 750ml.', 150, 40, 'active', 'water_bottle'],
-    ['Plant a Tree in Your Name', 'We plant a sapling and send you the geo-tag.', 200, 100, 'active', 'park'],
-    ['Canteen Voucher (₹500)', 'Redeemable at any company canteen.', 300, 25, 'active', 'restaurant'],
-    ['Work From Home Day', 'One extra WFH day, no questions asked.', 500, 12, 'active', 'home_work'],
-    ['Charity Donation (₹1000)', 'We donate to a climate charity of your choice.', 600, 30, 'active', 'volunteer_activism'],
-    ['Limited Edition Hoodie', 'Organic cotton. Very few made.', 750, 0, 'active', 'checkroom'],       // out of stock
-    ['Extra Annual Leave Day', 'One additional paid day off.', 2000, 5, 'active', 'beach_access'],      // priced out of reach
-    ['Last Year’s Tote Bag', 'Discontinued design.', 100, 8, 'inactive', 'shopping_bag'],               // retired
+    ['Organic Coffee Beans', '1kg ethically sourced single-origin medium roast.', 100, 15, 'active', 'coffee'],
+    ['Bamboo Desk Organizer', 'Handcrafted modular workspace sustainability tray.', 250, 8, 'active', 'table_rows'],
+    ['Solar Power Bank', '10,000mAh backup battery charged completely by solar cell.', 500, 4, 'active', 'solar_power'],
+    ['1-on-1 Lunch with CEO', 'Discuss Vertex corporate sustainability future with the board.', 1500, 1, 'active', 'restaurant'],
+    ['Tree Planting Dedicated Plate', 'A metal plate with your name on a newly planted sapling.', 150, 0, 'active', 'nature'],
   ];
-  const rewardIds = [];
-  for (const [name, desc, points, stock, status, icon] of rewards) {
-    const { id } = run(
+  for (const [name, desc, pts, stock, status, icon] of rewards) {
+    run(
       `INSERT INTO rewards (name, description, points_required, stock, status, icon)
        VALUES (?, ?, ?, ?, ?, ?)`,
-      [name, desc, points, stock, status, icon]
+      [name, desc, pts, stock, status, icon]
     );
-    rewardIds.push({ id, points, stock, status });
-  }
-
-  // --- Redemption history ---------------------------------------------------
-  // Backfilled through the SAME arithmetic the live route uses: every historic
-  // redemption debits the employee's balance and decrements the reward's stock.
-  // Faking the rows without moving the numbers would leave balances and stock
-  // that don't reconcile with the ledger -- the first thing an auditor checks.
-  for (const u of userIds) {
-    if (DEMO_LOGINS.has(u.email)) continue; // leave the demo wallets full to spend on stage
-    if (rnd() > 0.22) continue; // roughly 1 in 5 employees has cashed something in
-
-    const balance = get(`SELECT points_balance FROM users WHERE id = ?`, [u.id]).points_balance;
-    const affordable = rewardIds.filter(
-      (rw) => rw.status === 'active' && rw.stock > 0 && rw.points <= balance
-    );
-    if (!affordable.length) continue;
-
-    const rw = pick(affordable);
-    run(`UPDATE rewards SET stock = stock - 1 WHERE id = ?`, [rw.id]);
-    run(`UPDATE users SET points_balance = points_balance - ? WHERE id = ?`, [rw.points, u.id]);
-    run(
-      `INSERT INTO redemptions (reward_id, user_id, points_spent, status, redeemed_at)
-       VALUES (?, ?, ?, ?, ?)`,
-      [rw.id, u.id, rw.points, rnd() < 0.7 ? 'fulfilled' : 'confirmed',
-       iso(daysAgo(Math.floor(between(1, 45))))]
-    );
-    rw.stock -= 1; // keep the in-memory copy honest for the next iteration
   }
 
   // --- Policies -------------------------------------------------------------
   const policies = [
-    ['Environmental Management Policy', 'GRI', '3.1', 'active'],
-    ['Business Responsibility & Sustainability Report', 'BRSR', '2.0', 'active'],
-    ['Climate Risk Disclosure', 'TCFD', '1.4', 'active'],
-    ['Supplier Code of Conduct', 'SASB', '2.2', 'active'],
-    ['Anti-Corruption Policy', 'GRI', '1.9', 'active'],
-    ['Water Stewardship Standard', 'SASB', '0.9', 'draft'],
+    ['GRI Standard Disclosure Draft', 'GRI', 'v1.4', 'active', '2026-06-12'],
+    ['BRSR India Disclosures', 'BRSR', 'v2.0', 'active', '2026-05-18'],
+    ['TCFD Risk Alignment Strategy', 'TCFD', 'v1.1', 'active', '2026-04-10'],
+    ['SASB Industrial Standards Audit', 'SASB', 'v3.0', 'draft', null],
   ];
-  for (const [name, fw, ver, status] of policies) {
+  for (const [name, framework, ver, status, reviewed] of policies) {
     run(
       `INSERT INTO policies (name, framework, version, status, last_reviewed) VALUES (?, ?, ?, ?, ?)`,
-      [name, fw, ver, status, iso(daysAgo(Math.floor(between(20, 200))))]
+      [name, framework, ver, status, reviewed]
     );
   }
 
-  // --- Compliance issues ----------------------------------------------------
-  // A couple are deliberately left open and past due, so the governance score is
-  // dented and the chatbot's "overdue issues in IT" question returns real rows.
-  // dueOffset is days from today: negative = already past due.
-  // Three are left genuinely overdue (two of them in IT) -- that is what the
-  // chatbot's "overdue compliance issues in IT" question reads back.
-  const issues = [
-    ['Scope 3 supplier data incomplete', 'MFG', 'high', 'resolved', 30, 'GRI'],
-    ['Waste manifest missing for Q2', 'MFG', 'medium', 'resolved', 21, 'BRSR'],
-    ['Emissions logbook reconciliation', 'MFG', 'low', 'resolved', 44, 'GRI'],
-    ['Hazardous storage recertification', 'MFG', 'medium', 'in_progress', 18, 'BRSR'],
-    ['Vendor ESG questionnaire overdue', 'LOG', 'high', 'open', -14, 'SASB'],
-    ['Fuel logbook reconciliation gap', 'LOG', 'low', 'resolved', 30, 'GRI'],
-    ['Fleet emissions audit', 'LOG', 'medium', 'resolved', 26, 'TCFD'],
-    ['Data centre PUE not reported', 'IT', 'medium', 'open', -6, 'TCFD'],
-    ['Access review for ESG datastore', 'IT', 'critical', 'in_progress', -3, 'SASB'],
-    ['E-waste disposal certificate pending', 'IT', 'medium', 'open', 14, 'BRSR'],
-    ['Cloud carbon reporting enabled', 'IT', 'low', 'resolved', 35, 'GRI'],
-    ['Board ESG training not logged', 'CORP', 'medium', 'resolved', 45, 'GRI'],
-    ['Climate risk scenario refresh', 'CORP', 'high', 'in_progress', 22, 'TCFD'],
-    ['Whistleblower policy review', 'CORP', 'medium', 'resolved', 52, 'GRI'],
-    ['Travel emissions policy breach', 'SLS', 'low', 'resolved', 60, 'GRI'],
-    ['Customer ESG claims unverified', 'SLS', 'medium', 'open', 9, 'SASB'],
-    ['Sales collateral greenwashing check', 'SLS', 'medium', 'resolved', 33, 'SASB'],
-    ['Lab chemical inventory audit', 'R&D', 'high', 'resolved', 15, 'BRSR'],
-    ['Grant sustainability reporting', 'R&D', 'low', 'open', 28, 'GRI'],
-    ['Material lifecycle assessment', 'R&D', 'medium', 'resolved', 40, 'TCFD'],
+  // --- Propagate XP, point balances, and badge allocations -------------------
+  for (const u of userIds) {
+    const history = approvedList.filter((a) => a.uId === u.id);
+    const xp = history.reduce((s, a) => s + a.xp, 0);
+    const pts = history.reduce((s, a) => s + a.points, 0);
+
+    run(`UPDATE users SET xp = ?, points_balance = ? WHERE id = ?`, [xp, pts, u.id]);
+
+    for (const [bName, b] of Object.entries(badgeId)) {
+      if (xp >= b.xp) {
+        const days = Math.round(between(10, 50));
+        run(
+          `INSERT INTO user_badges (user_id, badge_id, awarded_at) VALUES (?, ?, datetime('now', ?))`,
+          [u.id, b.id, `-${days} days`]
+        );
+      }
+    }
+  }
+
+  // --- Redemptions ----------------------------------------------------------
+  for (const u of userIds) {
+    const bal = get(`SELECT points_balance, name FROM users WHERE id = ?`, [u.id]);
+    if (bal.points_balance > 150 && rnd() > 0.5) {
+      const reward = get(`SELECT * FROM rewards WHERE stock > 0 AND points_required <= ?`, [bal.points_balance]);
+      if (reward) {
+        const days = Math.round(between(2, 20));
+        run(`UPDATE rewards SET stock = stock - 1 WHERE id = ?`, [reward.id]);
+        run(`UPDATE users SET points_balance = points_balance - ? WHERE id = ?`, [reward.points_required, u.id]);
+        run(
+          `INSERT INTO redemptions (reward_id, user_id, points_spent, status, redeemed_at)
+           VALUES (?, ?, ?, 'confirmed', datetime('now', ?))`,
+          [reward.id, u.id, reward.points_required, `-${days} days`]
+        );
+      }
+    }
+  }
+
+  // --- Compliance Issues ----------------------------------------------------
+  const compliance = [
+    ['Data centre PUE not reported', 'IT', 'Priya Sharma', 'GRI', 'medium', 'open', 6, -15, null],
+    ['Hazardous chemical handling audit', 'MFG', 'Rajesh Iyer', 'BRSR', 'critical', 'resolved', 20, -50, -42],
+    ['Freight provider sustainability proof', 'LOG', 'Sara Chen', 'TCFD', 'high', 'in_progress', 15, -10, null],
+    ['Gender pay gap report upload', 'CORP', 'Alex Rivera', 'BRSR', 'medium', 'resolved', 30, -90, -85],
+    ['Scope 3 travel emission check', 'SLS', 'Marcus Webb', 'GRI', 'low', 'open', 45, 10, null],
+    ['R&D Lab waste disposal audit', 'R&D', 'Dr. Lena Novak', 'GRI', 'high', 'open', 30, 20, null],
   ];
-  for (const [title, code, severity, status, dueOffset, fw] of issues) {
-    const owner = pick(userIds.filter((u) => u.code === code && u.role === 'manager')) ?? userIds[0];
+  for (const [title, code, owner, fw, sev, status, dueOffset, createdOffset, resolvedOffset] of compliance) {
+    const ownerId = get(`SELECT id FROM users WHERE name = ?`, [owner]).id;
+    const due = iso(daysAgo(-dueOffset));
+    const created = iso(daysAgo(-createdOffset));
+    const resolved = resolvedOffset ? iso(daysAgo(-resolvedOffset)) : null;
+
     run(
-      `INSERT INTO compliance_issues
-         (title, department_id, owner_id, framework, severity, status, due_date, created_at, resolved_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        title, deptId[code], owner.id, fw, severity, status,
-        iso(daysAgo(-dueOffset)),
-        iso(daysAgo(Math.floor(between(30, 120)))),
-        status === 'resolved' ? iso(daysAgo(Math.floor(between(1, 25)))) : null,
-      ]
+      `INSERT INTO compliance_issues (title, department_id, owner_id, framework, severity, status, due_date, created_at, resolved_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now', ?), ?)`,
+      [title, deptId[code], ownerId, fw, sev, status, due, `${createdOffset} days`, resolved ? `datetime('now', '${resolvedOffset} days')` : null]
     );
   }
 
   // --- Reports --------------------------------------------------------------
-  const reports = [
-    ['Q3 Carbon Emissions Detailed Analysis', 'environmental', 'GRI', 'Q3 2026'],
-    ['Annual DEI Milestone Report', 'social', 'BRSR', 'FY 2026'],
-    ['Governance Compliance Audit 2026', 'governance', 'SASB', 'FY 2026'],
-    ['Scope 1-2-3 Inventory Summary', 'environmental', 'TCFD', 'H1 2026'],
+  const reportList = [
+    ['Q1 Environmental Performance', 'environmental', 'GRI', '2026-Q1', 1],
+    ['BRSR India Board Disclosures', 'governance', 'BRSR', '2026-FY', 2],
+    ['Vertex Social Engagement Index', 'social', 'GRI', '2026-H1', 1],
   ];
-  for (const [title, type, fw, period] of reports) {
+  for (const [title, type, fw, period, createdBy] of reportList) {
+    const uId = pick(userIds).id;
+    const days = Math.round(between(5, 80));
     run(
-      `INSERT INTO reports (title, type, framework, period, status, created_by, generated_at)
-       VALUES (?, ?, ?, ?, 'ready', ?, ?)`,
-      [title, type, fw, period, userIds[0].id, iso(daysAgo(Math.floor(between(2, 40))))]
+      `INSERT INTO reports (title, type, framework, period, status, snapshot, created_by, generated_at)
+       VALUES (?, ?, ?, ?, 'ready', '{}', ?, datetime('now', ?))`,
+      [title, type, fw, period, uId, `-${days} days`]
     );
   }
 
-  // --- Realign goal.current_co2 with the transactions we just wrote ----------
-  // Goals must agree with the ledger. Anything else and the demo contradicts itself.
-  for (const g of all(`SELECT id, department_id, baseline_co2, target_co2 FROM esg_goals`)) {
-    if (!g.department_id) continue;
-    const { kg } = get(
-      `SELECT COALESCE(SUM(co2e_kg), 0) AS kg FROM carbon_transactions
-        WHERE department_id = ? AND status = 'verified'
-          AND activity_date >= date('now', '-90 days')`,
-      [g.department_id]
-    );
-    const current = Math.round((kg / 1000) * 10) / 10; // -> tCO2e
-    if (g.target_co2 > 0 && current > 0) {
-      run(`UPDATE esg_goals SET current_co2 = ? WHERE id = ?`, [current, g.id]);
+  // --- Notifications --------------------------------------------------------
+  const notifs = [
+    ['IT', 'badge', '🏅 Badge Unlocked: Eco Starter', 'Congratulations! You earned the bronze badge "Eco Starter".', 'military_tech', 0, '/gamification.html', 5],
+    ['MFG', 'challenge', '✅ Challenge Approved: Tree Plantation Drive', 'Your submission was approved! You earned 80 points and 150 XP.', 'check_circle', 1, '/gamification.html', 8],
+    ['IT', 'compliance', '⚠️ Overdue Task: PUE Compliance', 'Your department is past due on reporting server room cooling factor.', 'warning', 0, '/governance.html', 3],
+  ];
+  for (const [code, type, title, msg, icon, read, link, offset] of notifs) {
+    const usersInDept = userIds.filter((u) => u.code === code);
+    if (usersInDept.length > 0) {
+      const uId = pick(usersInDept).id;
+      run(
+        `INSERT INTO notifications (user_id, type, title, message, icon, read, link, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now', ?))`,
+        [uId, type, title, msg, icon, read, link, `-${offset} days`]
+      );
     }
   }
 
-  // --- Audit log ------------------------------------------------------------
-  run(
-    `INSERT INTO audit_log (actor, action, entity, entity_id, detail)
-     VALUES ('system', 'seed', 'database', NULL, 'Initial dataset provisioned')`
-  );
+  // --- Audit logs -----------------------------------------------------------
+  const logs = [
+    ['Priya Sharma', 'login', 'user', 2, 'priya.sharma@vertex.example', 1],
+    ['Rajesh Iyer', 'participation_approved', 'participation', 5, 'Tree Plantation Drive', 3],
+    ['Alex Rivera', 'reward_redeemed', 'reward', 3, 'Alex Rivera redeemed "Solar Power Bank" for 500 points', 2],
+  ];
+  for (const [actor, action, ent, entId, detail, offset] of logs) {
+    run(
+      `INSERT INTO audit_log (actor, action, entity, entity_id, detail, created_at)
+       VALUES (?, ?, ?, ?, ?, datetime('now', ?))`,
+      [actor, action, ent, entId, detail, `-${offset} days`]
+    );
+  }
 });
 
-const counts = {
-  departments: get(`SELECT COUNT(*) n FROM departments`).n,
-  users: get(`SELECT COUNT(*) n FROM users`).n,
-  emission_factors: get(`SELECT COUNT(*) n FROM emission_factors`).n,
-  carbon_transactions: get(`SELECT COUNT(*) n FROM carbon_transactions`).n,
-  goals: get(`SELECT COUNT(*) n FROM esg_goals`).n,
-  challenges: get(`SELECT COUNT(*) n FROM challenges`).n,
-  participations: get(`SELECT COUNT(*) n FROM participations`).n,
-  badges_awarded: get(`SELECT COUNT(*) n FROM user_badges`).n,
-  compliance_issues: get(`SELECT COUNT(*) n FROM compliance_issues`).n,
-};
-console.table(counts);
 console.log('EcoSphere :: seed complete');
