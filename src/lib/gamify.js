@@ -4,6 +4,15 @@
 // points but no badge, or a badge they didn't earn.
 import { all, get, run, tx, audit } from '../db.js';
 
+/** Insert a notification row for a specific user. */
+function notify(userId, type, title, message, { icon = 'notifications', link = null } = {}) {
+  run(
+    `INSERT INTO notifications (user_id, type, title, message, icon, link)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [userId, type, title, message, icon, link]
+  );
+}
+
 const setting = (key, fallback) => {
   const row = get(`SELECT value FROM settings WHERE key = ?`, [key]);
   return row ? Number(row.value) : fallback;
@@ -32,6 +41,9 @@ export function syncBadges(userId) {
   for (const b of earned) {
     run(`INSERT OR IGNORE INTO user_badges (user_id, badge_id) VALUES (?, ?)`, [userId, b.id]);
     audit('system', 'badge_awarded', 'user', userId, `${b.name} (${b.tier})`);
+    notify(userId, 'badge', `🏅 Badge Unlocked: ${b.name}`,
+      `Congratulations! You earned the ${b.tier} badge "${b.name}".`,
+      { icon: 'military_tech', link: '/gamification.html' });
   }
   return earned; // so the UI can pop a "badge unlocked" toast
 }
@@ -71,6 +83,10 @@ export function approve(participationId, actor = 'system') {
     const u = get(`SELECT xp, points_balance FROM users WHERE id = ?`, [p.user_id]);
 
     audit(actor, 'participation_approved', 'participation', participationId, p.title);
+    notify(p.user_id, 'challenge',
+      `✅ Challenge Approved: ${p.title}`,
+      `Your submission was approved! You earned ${p.points} points and ${p.xp} XP.`,
+      { icon: 'check_circle', link: '/gamification.html' });
     return {
       xp: u.xp,
       pointsBalance: u.points_balance,
@@ -154,6 +170,10 @@ export function reject(participationId, reason = 'Did not meet challenge criteri
       [reason, participationId]
     );
     audit(actor, 'participation_rejected', 'participation', participationId, reason);
+    notify(p.user_id, 'challenge',
+      `❌ Challenge Submission Not Approved`,
+      `Your submission for a challenge was not approved. Reason: ${reason}`,
+      { icon: 'cancel', link: '/gamification.html' });
     return { rejected: true };
   });
 }

@@ -10,6 +10,7 @@ data/uploads/*
 # There are no dependencies, but keep this honest if one is ever added.
 node_modules/
 .env
+.env.*
 .DS_Store
 
 # Local agent/editor config -- never share.

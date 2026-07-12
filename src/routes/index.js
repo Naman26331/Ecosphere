@@ -672,6 +672,204 @@ export default function registerRoutes(r) {
   });
 
   // =========================================================================
+  // NOTIFICATIONS
+  // =========================================================================
+
+  /**
+   * Fetch notifications for the signed-in user.
+   * `?unread=true` returns only unread ones (used for the badge counter).
+   * Broadcasting notifications (user_id IS NULL) are included for every user.
+   */
+  r.get('/api/notifications', (req) => {
+    const url = new URL(req.url, 'http://localhost');
+    const unread = url.searchParams.get('unread') === 'true';
+    const me = req.user;
+    return all(
+      `SELECT * FROM notifications
+        WHERE (user_id = ? OR user_id IS NULL)
+          ${unread ? 'AND read = 0' : ''}
+        ORDER BY id DESC LIMIT 50`,
+      [me.id]
+    );
+  });
+
+  /** Mark a single notification as read. */
+  r.post('/api/notifications/:id/read', (req) => {
+    const id = Number(req.params.id);
+    run(`UPDATE notifications SET read = 1 WHERE id = ?`, [id]);
+    return { ok: true };
+  });
+
+  /** Mark ALL of the signed-in user's notifications as read. */
+  r.post('/api/notifications/read-all', (req) => {
+    const me = req.user;
+    run(`UPDATE notifications SET read = 1 WHERE user_id = ? OR user_id IS NULL`, [me.id]);
+    return { ok: true };
+  });
+
+  // =========================================================================
+  // ERP WEBHOOK  — simulated ERP event → auto emission calculation
+  // =========================================================================
+
+  /**
+   * POST /api/erp/webhook
+   *
+   * Accepts a JSON payload from a simulated ERP system (Odoo, SAP, etc.) and
+   * automatically calculates the carbon footprint using the emission_factors
+   * table, posting a verified row to carbon_transactions.
+   *
+   * Expected body:
+   *   { event, item, quantity, unit, department_id?, date? }
+   *
+   * Example:
+   *   { "event": "purchase", "item": "Diesel", "quantity": 100, "unit": "litre", "department_id": 1 }
+   */
+  r.post('/api/erp/webhook', async (req) => {
+    // ERP systems call this with an X-Api-Key header. The key is stored in
+    // settings so it can be rotated from the Settings UI. If no key is
+    // configured we fall back to requiring a session (req.user).
+    const configuredKey = get(`SELECT value FROM settings WHERE key = 'erp_api_key'`)?.value;
+    const providedKey = req.headers['x-api-key'];
+    const hasValidApiKey = configuredKey && providedKey && providedKey === configuredKey;
+    if (!hasValidApiKey && !req.user) {
+      throw bad('Provide a valid X-Api-Key header or sign in first', 401);
+    }
+
+    const b = await readJson(req);
+    if (!b.item || !b.quantity) throw bad('item and quantity are required');
+
+    const quantity = Number(b.quantity);
+    if (!quantity || quantity <= 0) throw bad('quantity must be a positive number');
+
+    // Match the ERP item name to an emission factor (case-insensitive partial match).
+    const factor = get(
+      `SELECT * FROM emission_factors
+        WHERE lower(activity) = lower(?)
+           OR lower(activity) LIKE '%' || lower(?) || '%'
+        LIMIT 1`,
+      [b.item, b.item]
+    );
+    if (!factor) {
+      throw bad(`No emission factor configured for "${b.item}". ` +
+        `Available activities: ${all('SELECT activity FROM emission_factors').map(r => r.activity).join(', ')}`);
+    }
+
+    const co2e = Math.round(quantity * factor.factor_kgco2e * 100) / 100;
+    const deptId = num(b.department_id) ?? 1;
+    const activityDate = b.date ?? new Date().toISOString().slice(0, 10);
+
+    const { id } = run(
+      `INSERT INTO carbon_transactions
+         (department_id, emission_factor_id, activity_date, quantity,
+          co2e_kg, source, status)
+       VALUES (?, ?, ?, ?, ?, 'erp', 'verified')`,
+      [deptId, factor.id, activityDate, quantity, co2e]
+    );
+
+    const dept = get(`SELECT name FROM departments WHERE id = ?`, [deptId])?.name ?? 'Unknown';
+    audit('ERP Webhook', 'erp_transaction', 'carbon_transaction', id,
+      `${b.event ?? 'event'}: ${quantity} ${factor.unit} ${factor.activity} = ${co2e} kgCO2e [${dept}]`);
+
+    // Notify all officers/managers about the new auto-logged emission.
+    const notifyUsers = all(`SELECT id FROM users WHERE role IN ('officer', 'manager')`);
+    for (const u of notifyUsers) {
+      run(
+        `INSERT INTO notifications (user_id, type, title, message, icon, link)
+         VALUES (?, 'erp', ?, ?, 'precision_manufacturing', '/environment.html')`,
+        [u.id,
+         `ERP Auto-logged: ${factor.activity}`,
+         `${quantity} ${factor.unit} of ${factor.activity} from ${dept} = ${co2e} kgCO2e (source: ${b.event ?? 'ERP'}).`
+        ]
+      );
+    }
+
+    return {
+      id,
+      event: b.event ?? 'erp_event',
+      matched_activity: factor.activity,
+      quantity,
+      unit: factor.unit,
+      co2e_kg: co2e,
+      scope: `Scope ${factor.scope}`,
+      department: dept,
+      message: `Auto-posted ${co2e} kgCO2e to the carbon ledger for ${dept}.`,
+    };
+  });
+
+  // =========================================================================
+  // CUSTOM REPORT EXPORT (CSV)
+  // =========================================================================
+
+  /**
+   * GET /api/reports/export
+   *
+   * Downloads a CSV of verified carbon transactions filtered by department,
+   * date range, and emission category. The Content-Disposition header makes
+   * the browser treat it as a file download rather than rendering it.
+   *
+   * Query parameters:
+   *   department_id  – restrict to one department
+   *   start          – ISO date, e.g. 2026-01-01
+   *   end            – ISO date, e.g. 2026-06-30
+   *   category       – Electricity | Fuel | Travel | Waste | Water
+   *   scope          – 1 | 2 | 3
+   *   format         – csv (default) | json
+   */
+  r.get('/api/reports/export', (req, res) => {
+    const url = new URL(req.url, 'http://localhost');
+    const deptId  = url.searchParams.get('department_id');
+    const start   = url.searchParams.get('start');
+    const end     = url.searchParams.get('end');
+    const cat     = url.searchParams.get('category');
+    const scope   = url.searchParams.get('scope');
+    const format  = url.searchParams.get('format') ?? 'csv';
+
+    const clauses = ['ct.status = \'verified\''];
+    const params  = [];
+    if (deptId)  { clauses.push('ct.department_id = ?');  params.push(Number(deptId)); }
+    if (start)   { clauses.push('ct.activity_date >= ?'); params.push(start); }
+    if (end)     { clauses.push('ct.activity_date <= ?'); params.push(end); }
+    if (cat)     { clauses.push('ef.category = ?');        params.push(cat); }
+    if (scope)   { clauses.push('ef.scope = ?');           params.push(Number(scope)); }
+
+    const rows = all(
+      `SELECT ct.activity_date, d.name AS department, ef.category, ef.activity,
+              ef.scope, ct.quantity, ef.unit, ct.co2e_kg, ct.source,
+              ef.factor_kgco2e, ef.source AS factor_source, ct.document_ref
+         FROM carbon_transactions ct
+         JOIN emission_factors ef ON ef.id = ct.emission_factor_id
+         JOIN departments d       ON d.id  = ct.department_id
+        WHERE ${clauses.join(' AND ')}
+        ORDER BY ct.activity_date DESC`,
+      params
+    );
+
+    if (format === 'json') return rows;
+
+    // Build CSV inline -- no external lib required.
+    const COLS = [
+      'Date', 'Department', 'Category', 'Activity', 'Scope',
+      'Quantity', 'Unit', 'CO2e_kg', 'Source', 'Emission_Factor', 'Factor_Source', 'Document'
+    ];
+    const escape = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const csv = [
+      COLS.join(','),
+      ...rows.map((r) => [
+        r.activity_date, r.department, r.category, r.activity, `Scope ${r.scope}`,
+        r.quantity, r.unit, r.co2e_kg, r.source, r.factor_kgco2e, r.factor_source, r.document_ref ?? ''
+      ].map(escape).join(','))
+    ].join('\r\n');
+
+    const filename = `ecosphere-export-${new Date().toISOString().slice(0,10)}.csv`;
+    res.writeHead(200, {
+      'Content-Type': 'text/csv; charset=utf-8',
+      'Content-Disposition': `attachment; filename="${filename}"`,
+      'Content-Length': Buffer.byteLength(csv),
+    });
+    res.end(csv);
+  });
+
+  // =========================================================================
   // SETTINGS
   // =========================================================================
 

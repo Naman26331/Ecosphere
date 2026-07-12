@@ -192,9 +192,21 @@ CREATE TABLE IF NOT EXISTS reports (
   created_by   INTEGER REFERENCES users(id),
   generated_at TEXT    NOT NULL DEFAULT (datetime('now'))
 );
+-- In-app notification inbox. Written by the backend (badge unlocks, challenge
+-- approvals, overdue compliance alerts, ERP webhook events). Soft-deleted by
+-- marking read -- never hard-deleted, so the history stays intact.
+CREATE TABLE IF NOT EXISTS notifications (
+  id         INTEGER PRIMARY KEY,
+  user_id    INTEGER REFERENCES users(id),   -- NULL = broadcast to all users
+  type       TEXT    NOT NULL,               -- badge | challenge | compliance | erp | system
+  title      TEXT    NOT NULL,
+  message    TEXT    NOT NULL,
+  icon       TEXT    NOT NULL DEFAULT 'notifications',
+  read       INTEGER NOT NULL DEFAULT 0,     -- 0 | 1  (SQLite has no BOOLEAN)
+  link       TEXT,                           -- optional deep-link path e.g. /gamification.html
+  created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+);
 
--- Append-only. Every state change the backend makes lands here, so the
--- "Audit Log" screen is a real record and not decoration.
 CREATE TABLE IF NOT EXISTS audit_log (
   id         INTEGER PRIMARY KEY,
   actor      TEXT    NOT NULL,
