@@ -1,0 +1,38 @@
+# Render blueprint. Push this, then on Render: New -> Blueprint -> pick this repo.
+#
+# Nothing here installs a dependency, because there aren't any: `npm install`
+# resolves to zero packages. The build is effectively a no-op and the container
+# boots in seconds.
+services:
+  - type: web
+    name: ecosphere
+    runtime: node
+    plan: free
+    region: singapore # closest to India; change if you're presenting elsewhere
+
+    buildCommand: npm install
+    startCommand: npm start
+
+    # The app seeds itself on first boot when it finds an empty database, so
+    # there is no separate migrate/seed step to forget.
+    healthCheckPath: /api/health
+
+    envVars:
+      # node:sqlite is built in from Node 22.5. Render defaults to an older Node,
+      # where `import 'node:sqlite'` throws and the app never starts.
+      - key: NODE_VERSION
+        value: 24.14.1
+
+      # Turns on the Secure flag for the session cookie (see src/lib/auth.js).
+      - key: NODE_ENV
+        value: production
+
+      # Signing key for sessions. Render generates it and keeps it across
+      # restarts, so a redeploy doesn't sign everybody out.
+      - key: SESSION_SECRET
+        generateValue: true
+
+      # The AI provider seam. `rules` runs offline with no key and no cost.
+      # To go live: set this to gemini/openai and add the key as a secret here.
+      - key: AI_PROVIDER
+        value: rules

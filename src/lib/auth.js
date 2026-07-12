@@ -114,15 +114,21 @@ export function parseCookies(req) {
   );
 }
 
+// In production we're behind HTTPS, so mark the cookie Secure -- the browser then
+// refuses to send it over plain HTTP, which is what stops it being sniffed in
+// transit. Left off locally, because localhost is HTTP and a Secure cookie would
+// simply never be sent, silently breaking login on your own machine.
+const SECURE = process.env.NODE_ENV === 'production' ? '; Secure' : '';
+
 /**
  * HttpOnly so page scripts can't read the token (an XSS bug can't steal the
  * session). SameSite=Lax so another site can't ride the cookie on a form post.
  */
 export const sessionCookie = (token) =>
-  `${SESSION_COOKIE}=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${SESSION_TTL_MS / 1000}`;
+  `${SESSION_COOKIE}=${token}; HttpOnly; SameSite=Lax${SECURE}; Path=/; Max-Age=${SESSION_TTL_MS / 1000}`;
 
 export const clearCookie = () =>
-  `${SESSION_COOKIE}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0`;
+  `${SESSION_COOKIE}=; HttpOnly; SameSite=Lax${SECURE}; Path=/; Max-Age=0`;
 
 /** The user this request belongs to, or null. The single source of truth. */
 export function currentUser(req) {
