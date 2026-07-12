@@ -7,7 +7,7 @@ import { createServer } from 'node:http';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { migrate } from './src/db.js';
+import { migrate, get } from './src/db.js';
 import { createRouter, serveStatic, json } from './src/lib/http.js';
 import { currentUser } from './src/lib/auth.js';
 import registerRoutes from './src/routes/index.js';
@@ -25,6 +25,14 @@ const isPublic = (pathname) =>
   PUBLIC_PATHS.has(pathname) || pathname.startsWith('/assets/');
 
 migrate(); // idempotent -- safe on every boot
+
+// A hosted container starts with an empty disk: no database file, no rows. Without
+// this, the app would boot "fine" and then reject every single login, which looks
+// exactly like a broken password bug. Seed once, only when there is nothing there.
+if (get(`SELECT COUNT(*) AS n FROM users`).n === 0) {
+  console.log('  empty database detected -- seeding...');
+  await import('./src/seed.js');
+}
 
 const router = createRouter();
 registerRoutes(router);
