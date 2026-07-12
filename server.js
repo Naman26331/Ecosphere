@@ -32,12 +32,13 @@ const PUBLIC_PATHS = new Set([
 const isPublic = (pathname) =>
   PUBLIC_PATHS.has(pathname) || pathname.startsWith('/assets/');
 
-migrate(); // idempotent -- safe on every boot
+await migrate(); // idempotent -- safe on every boot
 
 // A hosted container starts with an empty disk: no database file, no rows. Without
 // this, the app would boot "fine" and then reject every single login, which looks
 // exactly like a broken password bug. Seed once, only when there is nothing there.
-if (get(`SELECT COUNT(*) AS n FROM users`).n === 0) {
+const userCount = await get(`SELECT COUNT(*) AS n FROM users`);
+if (userCount && userCount.n === 0) {
   console.log('  empty database detected -- seeding...');
   await import('./src/seed.js');
 }
