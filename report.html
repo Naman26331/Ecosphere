@@ -1,0 +1,445 @@
+<!DOCTYPE html><html class="light" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>EcoSphere | Reports</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-container-highest": "#d3e4fe",
+                    "tertiary-fixed-dim": "#bdcac1",
+                    "on-tertiary-fixed": "#131e19",
+                    "on-secondary-container": "#00714d",
+                    "on-primary-fixed": "#002117",
+                    "on-tertiary-fixed-variant": "#3e4943",
+                    "on-tertiary": "#ffffff",
+                    "primary": "#003527",
+                    "inverse-primary": "#95d3ba",
+                    "inverse-surface": "#213145",
+                    "surface-variant": "#d3e4fe",
+                    "surface-container-low": "#eff4ff",
+                    "background": "#f8f9ff",
+                    "surface-tint": "#2b6954",
+                    "on-tertiary-container": "#a8b5ad",
+                    "on-primary-fixed-variant": "#0b513d",
+                    "surface-container-lowest": "#ffffff",
+                    "on-secondary-fixed": "#002113",
+                    "on-secondary": "#ffffff",
+                    "on-background": "#0b1c30",
+                    "secondary-container": "#6cf8bb",
+                    "primary-container": "#064e3b",
+                    "surface-bright": "#f8f9ff",
+                    "tertiary-container": "#3b4741",
+                    "primary-fixed": "#b0f0d6",
+                    "surface": "#f8f9ff",
+                    "error-container": "#ffdad6",
+                    "outline": "#707974",
+                    "on-primary-container": "#80bea6",
+                    "surface-dim": "#cbdbf5",
+                    "surface-container": "#e5eeff",
+                    "primary-fixed-dim": "#95d3ba",
+                    "tertiary-fixed": "#d9e6dd",
+                    "on-secondary-fixed-variant": "#005236",
+                    "inverse-on-surface": "#eaf1ff",
+                    "on-error": "#ffffff",
+                    "secondary-fixed": "#6ffbbe",
+                    "on-surface-variant": "#404944",
+                    "on-error-container": "#93000a",
+                    "on-primary": "#ffffff",
+                    "secondary-fixed-dim": "#4edea3",
+                    "on-surface": "#0b1c30",
+                    "secondary": "#006c49",
+                    "tertiary": "#25312b",
+                    "outline-variant": "#bfc9c3",
+                    "error": "#ba1a1a",
+                    "surface-container-high": "#dce9ff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "margin-desktop": "32px",
+                    "stack-sm": "8px",
+                    "stack-lg": "24px",
+                    "container-max": "1440px",
+                    "stack-md": "16px",
+                    "margin-mobile": "16px",
+                    "gutter": "24px"
+            },
+            "fontFamily": {
+                    "title-lg": ["Inter"],
+                    "label-sm": ["Inter"],
+                    "headline-lg-mobile": ["Inter"],
+                    "headline-lg": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "label-md": ["Inter"],
+                    "body-md": ["Inter"],
+                    "headline-md": ["Inter"],
+                    "display-lg": ["Inter"]
+            },
+            "fontSize": {
+                    "title-lg": ["18px", {"lineHeight": "28px", "fontWeight": "600"}],
+                    "label-sm": ["11px", {"lineHeight": "14px", "fontWeight": "600"}],
+                    "headline-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                    "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                    "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.01em", "fontWeight": "500"}],
+                    "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                    "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(0, 53, 39, 0.05);
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #bfc9c3;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background min-h-screen">
+<!-- Side Navigation Bar -->
+<aside class="fixed left-0 top-0 h-full w-[280px] bg-surface dark:bg-surface-container border-r border-outline-variant dark:border-outline shadow-sm flex flex-col py-stack-lg px-stack-md z-50">
+<div class="mb-10 px-4">
+<h1 class="font-headline-md text-headline-md font-bold text-primary dark:text-primary-fixed">EcoSphere</h1>
+<p class="text-label-md font-label-md text-on-surface-variant">ESG Management</p>
+</div>
+<nav class="flex-1 space-y-2 overflow-y-auto custom-scrollbar">
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant dark:text-surface-variant hover:bg-surface-container-low dark:hover:bg-surface-container-highest transition-colors duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-body-md text-body-md">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant dark:text-surface-variant hover:bg-surface-container-low dark:hover:bg-surface-container-highest transition-colors duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined">eco</span>
+<span class="font-body-md text-body-md">Environmental</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant dark:text-surface-variant hover:bg-surface-container-low dark:hover:bg-surface-container-highest transition-colors duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined">group</span>
+<span class="font-body-md text-body-md">Social</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant dark:text-surface-variant hover:bg-surface-container-low dark:hover:bg-surface-container-highest transition-colors duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined">gavel</span>
+<span class="font-body-md text-body-md">Governance</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant dark:text-surface-variant hover:bg-surface-container-low dark:hover:bg-surface-container-highest transition-colors duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined">military_tech</span>
+<span class="font-body-md text-body-md">Gamification</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-secondary dark:text-secondary-fixed-dim font-bold border-r-4 border-secondary hover:bg-surface-container-low dark:hover:bg-surface-container-highest transition-colors duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined">assessment</span>
+<span class="font-body-md text-body-md">Reports</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant dark:text-surface-variant hover:bg-surface-container-low dark:hover:bg-surface-container-highest transition-colors duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-body-md text-body-md">Settings</span>
+</a>
+</nav>
+<div class="mt-auto px-4 pt-6 border-t border-outline-variant">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-secondary-container flex items-center justify-center text-on-secondary-container font-bold">JD</div>
+<div>
+<p class="text-body-md font-bold text-on-surface">John Doe</p>
+<p class="text-label-sm text-on-surface-variant">Admin Access</p>
+</div>
+</div>
+</div>
+</aside>
+<!-- Top Navigation Bar -->
+<header class="fixed top-0 right-0 w-[calc(100%-280px)] h-16 bg-surface dark:bg-surface-container border-b border-outline-variant dark:border-outline flex items-center justify-between px-margin-desktop z-40">
+<div class="flex items-center flex-1 max-w-xl">
+<div class="relative w-full">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
+<input class="w-full bg-surface-container-low border-none rounded-full py-2 pl-10 pr-4 text-body-md focus:ring-2 focus:ring-secondary/20 transition-all" placeholder="Search reports, data, or metrics..." type="text">
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="p-2 text-on-surface-variant hover:bg-surface-container-highest dark:hover:bg-inverse-surface rounded-full transition-all scale-95 active:scale-90">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<div class="h-8 w-[1px] bg-outline-variant"></div>
+<button class="flex items-center gap-2 hover:bg-surface-container-highest rounded-full px-2 py-1 transition-all">
+<img class="w-8 h-8 rounded-full object-cover" data-alt="A professional headshot of a corporate manager in a high-clarity enterprise setting, soft natural lighting, minimalist aesthetic with clean lines and a focused expression." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBvQxDEIkduqkQJnKoMDFp5Q-hhiOGYySs8Y4gPM8gtIo7pujHcxLuFBOxqxnyBfwtw8jg2Y1tkEmj-KuJsFGfhZok7-AvrEr_8EHLBzTdenUHNrpmTx3h9H6wjneHzW9od4PaLsCpdtjgYhobRGGaf1lg3Mro2w-_nMWlidvfY_IADgtwnG2eEG9R4kk5-Al1sQaYT2-uKAq7OIKigjGS7GJyX8bNDDJCkujLXJsGKq2H2LXTvkYrLFK_aSIUl4ojmkSoXCrhZvgE">
+<span class="material-symbols-outlined text-on-surface-variant">expand_more</span>
+</button>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="ml-[280px] pt-16 min-h-screen">
+<div class="max-w-container-max mx-auto p-margin-desktop">
+<!-- Page Header -->
+<div class="mb-stack-lg flex flex-col md:flex-row md:items-end justify-between gap-4">
+<div>
+<h2 class="font-headline-lg text-headline-lg text-primary mb-1">Impact Reports</h2>
+<p class="text-body-lg text-on-surface-variant">Generate and analyze comprehensive ESG performance data.</p>
+</div>
+<div class="flex gap-3">
+<button class="flex items-center gap-2 px-6 py-2.5 bg-primary text-white rounded-lg font-title-lg transition-transform hover:scale-[1.02] active:scale-[0.98] shadow-sm">
+<span class="material-symbols-outlined text-[20px]">add</span>
+                        Create Custom
+                    </button>
+</div>
+</div>
+<!-- Report Quick Actions Cards (Bento Style) -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-gutter mb-stack-lg">
+<!-- Environmental Card -->
+<div class="glass-card p-6 rounded-xl shadow-sm flex flex-col hover:border-secondary/30 transition-all group">
+<div class="w-12 h-12 bg-emerald-50 rounded-lg flex items-center justify-center text-secondary mb-4 group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-[28px]">eco</span>
+</div>
+<h3 class="font-title-lg text-title-lg text-primary mb-2">Environmental</h3>
+<p class="text-body-md text-on-surface-variant flex-1 mb-6">Carbon footprint, energy consumption, and waste management metrics.</p>
+<button class="w-full py-2 bg-secondary/10 text-secondary hover:bg-secondary hover:text-white rounded-lg font-label-md transition-colors flex items-center justify-center gap-2">
+                        Generate
+                        <span class="material-symbols-outlined text-sm">arrow_forward</span>
+</button>
+</div>
+<!-- Social Card -->
+<div class="glass-card p-6 rounded-xl shadow-sm flex flex-col hover:border-secondary/30 transition-all group">
+<div class="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center text-blue-600 mb-4 group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-[28px]">group</span>
+</div>
+<h3 class="font-title-lg text-title-lg text-primary mb-2">Social</h3>
+<p class="text-body-md text-on-surface-variant flex-1 mb-6">DEI statistics, labor practices, and community impact performance.</p>
+<button class="w-full py-2 bg-secondary/10 text-secondary hover:bg-secondary hover:text-white rounded-lg font-label-md transition-colors flex items-center justify-center gap-2">
+                        Generate
+                        <span class="material-symbols-outlined text-sm">arrow_forward</span>
+</button>
+</div>
+<!-- Governance Card -->
+<div class="glass-card p-6 rounded-xl shadow-sm flex flex-col hover:border-secondary/30 transition-all group">
+<div class="w-12 h-12 bg-slate-50 rounded-lg flex items-center justify-center text-slate-700 mb-4 group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-[28px]">gavel</span>
+</div>
+<h3 class="font-title-lg text-title-lg text-primary mb-2">Governance</h3>
+<p class="text-body-md text-on-surface-variant flex-1 mb-6">Board diversity, ethics compliance, and risk management status.</p>
+<button class="w-full py-2 bg-secondary/10 text-secondary hover:bg-secondary hover:text-white rounded-lg font-label-md transition-colors flex items-center justify-center gap-2">
+                        Generate
+                        <span class="material-symbols-outlined text-sm">arrow_forward</span>
+</button>
+</div>
+<!-- ESG Summary Card -->
+<div class="glass-card p-6 rounded-xl shadow-sm flex flex-col hover:border-secondary/30 transition-all group border-primary/20 bg-primary/5">
+<div class="w-12 h-12 bg-primary rounded-lg flex items-center justify-center text-white mb-4 group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-[28px]">monitoring</span>
+</div>
+<h3 class="font-title-lg text-title-lg text-primary mb-2">ESG Summary</h3>
+<p class="text-body-md text-on-surface-variant flex-1 mb-6">Integrated overview of all three pillars for executive reporting.</p>
+<button class="w-full py-2 bg-primary text-white hover:bg-primary/90 rounded-lg font-label-md transition-colors flex items-center justify-center gap-2">
+                        Generate
+                        <span class="material-symbols-outlined text-sm">auto_awesome</span>
+</button>
+</div>
+</div>
+<!-- Custom Report Builder Panel -->
+<section class="bg-white rounded-2xl shadow-sm border border-outline-variant p-stack-lg overflow-hidden relative">
+<div class="absolute top-0 right-0 w-1/3 h-full opacity-5 pointer-events-none">
+
+</div>
+<div class="relative z-10">
+<div class="flex items-center gap-3 mb-stack-lg">
+<span class="material-symbols-outlined text-primary">tune</span>
+<h3 class="font-headline-md text-headline-md text-primary">Custom Report Builder</h3>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-stack-md mb-stack-lg">
+<!-- Filters -->
+<div class="space-y-1">
+<label class="text-label-sm text-on-surface-variant px-1">Date Range</label>
+<select class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-2.5 text-body-md focus:border-secondary focus:ring-1 focus:ring-secondary/20 outline-none">
+<option>Last 30 Days</option>
+<option>Current Quarter</option>
+<option>Previous Quarter</option>
+<option>Full Year 2023</option>
+<option>Custom Range...</option>
+</select>
+</div>
+<div class="space-y-1">
+<label class="text-label-sm text-on-surface-variant px-1">Department</label>
+<select class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-2.5 text-body-md focus:border-secondary focus:ring-1 focus:ring-secondary/20 outline-none">
+<option>All Departments</option>
+<option>Operations</option>
+<option>Human Resources</option>
+<option>IT Infrastructure</option>
+<option>Supply Chain</option>
+</select>
+</div>
+<div class="space-y-1">
+<label class="text-label-sm text-on-surface-variant px-1">Module</label>
+<select class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-2.5 text-body-md focus:border-secondary focus:ring-1 focus:ring-secondary/20 outline-none">
+<option>All Modules</option>
+<option>Energy Tracker</option>
+<option>Social Equity</option>
+<option>Risk Assessment</option>
+<option>Compliance Hub</option>
+</select>
+</div>
+<div class="space-y-1">
+<label class="text-label-sm text-on-surface-variant px-1">Employee</label>
+<select class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-2.5 text-body-md focus:border-secondary focus:ring-1 focus:ring-secondary/20 outline-none">
+<option>All Personnel</option>
+<option>Direct Managers</option>
+<option>Specific Employee...</option>
+</select>
+</div>
+<div class="space-y-1">
+<label class="text-label-sm text-on-surface-variant px-1">Challenge</label>
+<select class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-2.5 text-body-md focus:border-secondary focus:ring-1 focus:ring-secondary/20 outline-none">
+<option>All Active Challenges</option>
+<option>Net Zero Goal 2025</option>
+<option>Zero Waste Office</option>
+<option>Inclusion Milestone</option>
+</select>
+</div>
+<div class="space-y-1">
+<label class="text-label-sm text-on-surface-variant px-1">ESG Category</label>
+<select class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg p-2.5 text-body-md focus:border-secondary focus:ring-1 focus:ring-secondary/20 outline-none">
+<option>General Overview</option>
+<option>Scope 1 Emissions</option>
+<option>Scope 2 Emissions</option>
+<option>Scope 3 Emissions</option>
+<option>Gender Pay Gap</option>
+<option>Board Oversight</option>
+</select>
+</div>
+</div>
+<!-- Action Footer -->
+<div class="flex flex-col sm:flex-row items-center justify-between gap-4 pt-stack-md border-t border-outline-variant">
+<button class="w-full sm:w-auto px-8 py-3 bg-secondary text-white rounded-lg font-title-lg flex items-center justify-center gap-2 hover:bg-on-secondary-container transition-all shadow-md">
+<span class="material-symbols-outlined">play_arrow</span>
+                            Run Report
+                        </button>
+<div class="flex items-center gap-2 w-full sm:w-auto">
+<button class="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 bg-surface-container-high border border-outline-variant rounded-lg text-on-surface hover:bg-surface-container-highest transition-colors font-label-md">
+<span class="material-symbols-outlined text-[20px]">picture_as_pdf</span>
+                                PDF
+                            </button>
+<button class="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 bg-surface-container-high border border-outline-variant rounded-lg text-on-surface hover:bg-surface-container-highest transition-colors font-label-md">
+<span class="material-symbols-outlined text-[20px]">table_view</span>
+                                Excel
+                            </button>
+<button class="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 bg-surface-container-high border border-outline-variant rounded-lg text-on-surface hover:bg-surface-container-highest transition-colors font-label-md">
+<span class="material-symbols-outlined text-[20px]">csv</span>
+                                CSV
+                            </button>
+</div>
+</div>
+</div>
+</section>
+<!-- Recent Reports List (Bonus Contextual UI) -->
+<section class="mt-stack-lg">
+<div class="flex items-center justify-between mb-4 px-2">
+<h3 class="font-title-lg text-title-lg text-primary">Recent Reports</h3>
+<button class="text-secondary font-label-md hover:underline">View Archive</button>
+</div>
+<div class="glass-card rounded-xl border border-outline-variant divide-y divide-outline-variant">
+<!-- Item 1 -->
+<div class="p-4 flex flex-wrap md:flex-nowrap items-center justify-between gap-4 hover:bg-surface-container-low transition-colors">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700">
+<span class="material-symbols-outlined">file_present</span>
+</div>
+<div>
+<h4 class="text-body-md font-bold text-on-surface">Q3 Carbon Emissions Detailed Analysis</h4>
+<p class="text-label-sm text-on-surface-variant">Generated 2 hours ago • By John Doe</p>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<span class="px-3 py-1 bg-green-50 text-green-700 text-label-sm rounded-full font-bold">COMPLETED</span>
+<button class="p-2 text-on-surface-variant hover:bg-surface-variant rounded-lg transition-all">
+<span class="material-symbols-outlined">download</span>
+</button>
+</div>
+</div>
+<!-- Item 2 -->
+<div class="p-4 flex flex-wrap md:flex-nowrap items-center justify-between gap-4 hover:bg-surface-container-low transition-colors">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-700">
+<span class="material-symbols-outlined">file_present</span>
+</div>
+<div>
+<h4 class="text-body-md font-bold text-on-surface">Annual DEI Milestone Report</h4>
+<p class="text-label-sm text-on-surface-variant">Generated Yesterday • By System</p>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<span class="px-3 py-1 bg-green-50 text-green-700 text-label-sm rounded-full font-bold">COMPLETED</span>
+<button class="p-2 text-on-surface-variant hover:bg-surface-variant rounded-lg transition-all">
+<span class="material-symbols-outlined">download</span>
+</button>
+</div>
+</div>
+<!-- Item 3 -->
+<div class="p-4 flex flex-wrap md:flex-nowrap items-center justify-between gap-4 hover:bg-surface-container-low transition-colors">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-700">
+<span class="material-symbols-outlined">history</span>
+</div>
+<div>
+<h4 class="text-body-md font-bold text-on-surface">Governance Compliance Audit 2024</h4>
+<p class="text-label-sm text-on-surface-variant">Last viewed 3 days ago</p>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<span class="px-3 py-1 bg-amber-50 text-amber-700 text-label-sm rounded-full font-bold uppercase tracking-wider">In Progress</span>
+<button class="p-2 text-on-surface-variant hover:bg-surface-variant rounded-lg transition-all">
+<span class="material-symbols-outlined">sync</span>
+</button>
+</div>
+</div>
+</div>
+</section>
+</div>
+</main>
+<script>
+        // Simple micro-interactions for the buttons
+        document.querySelectorAll('button').forEach(btn => {
+            btn.addEventListener('mousedown', () => {
+                btn.style.transform = 'scale(0.95)';
+            });
+            btn.addEventListener('mouseup', () => {
+                btn.style.transform = '';
+            });
+            btn.addEventListener('mouseleave', () => {
+                btn.style.transform = '';
+            });
+        });
+
+        // Initialize any tooltips or interactive filters if needed
+        console.log("EcoSphere Reports UI initialized.");
+    </script>
+<!-- Mobile Bottom Nav -->
+<nav class="lg:hidden fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-slate-200 flex items-center justify-around px-2 z-50 shadow-lg">
+  <a href="index.html" class="flex flex-col items-center gap-0.5 text-gray-400"><span class="material-symbols-outlined text-xl">dashboard</span><span class="text-[9px]">Home</span></a>
+  <a href="Enviornment.html" class="flex flex-col items-center gap-0.5 text-gray-400"><span class="material-symbols-outlined text-xl">eco</span><span class="text-[9px]">Enviro</span></a>
+  <a href="social.html" class="flex flex-col items-center gap-0.5 text-gray-400"><span class="material-symbols-outlined text-xl">group</span><span class="text-[9px]">Social</span></a>
+  <a href="gamification.html" class="flex flex-col items-center gap-0.5 text-gray-400"><span class="material-symbols-outlined text-xl">military_tech</span><span class="text-[9px]">Games</span></a>
+  <a href="report.html" class="flex flex-col items-center gap-0.5 text-green-800"><span class="material-symbols-outlined text-xl" style="font-variation-settings:'FILL' 1">assessment</span><span class="text-[9px] font-bold">Reports</span></a>
+</nav>
+<script src="js/app.js"></script>
+<script src="js/chatbot.js"></script>
+</body></html>
