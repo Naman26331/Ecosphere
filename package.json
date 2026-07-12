@@ -8,10 +8,19 @@
     "node": ">=22.5.0"
   },
   "scripts": {
-    "start": "node --no-warnings server.js",
-    "dev": "node --no-warnings --watch server.js",
-    "seed": "node --no-warnings src/seed.js",
-    "reset": "rm -f data/ecosphere.db && npm run seed",
-    "make-admin": "node --no-warnings src/make-admin.js"
+    "start": "node --no-warnings --env-file=.env server.js",
+    "dev": "node --no-warnings --env-file=.env --watch server.js",
+    "build:css": "node node_modules/tailwindcss/lib/cli.js -i ./src/input.css -o ./public/assets/output.css",
+    "seed": "node --no-warnings --env-file=.env src/seed.js",
+    "reset": "rm -f data/ecosphere.db && npm run seed"
+  },
+  "dependencies": {
+    "pg": "^8.22.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/forms": "^0.5.11",
+    "autoprefixer": "^10.5.2",
+    "postcss": "^8.5.17",
+    "tailwindcss": "^3.4.19"
   }
 }

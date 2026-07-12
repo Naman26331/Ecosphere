@@ -10,7 +10,7 @@ services:
     plan: free
     region: singapore # closest to India; change if you're presenting elsewhere
 
-    buildCommand: npm install
+    buildCommand: npm install && npm run build:css
     startCommand: npm start
 
     # The app seeds itself on first boot when it finds an empty database, so

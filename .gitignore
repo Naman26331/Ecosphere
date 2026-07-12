@@ -1,4 +1,4 @@
-# The database is generated -- run `npm run seed` to build it.
+# Legacy local SQLite database (migrating to Render Postgres)
 data/ecosphere.db
 data/ecosphere.db-shm
 data/ecosphere.db-wal
@@ -17,3 +17,6 @@ node_modules/
 # Covers the whole directory, not just settings.local.json, so anything that
 # lands here later (agents, commands, local settings) stays out of the repo.
 .claude/
+
+# Built CSS file
+public/assets/output.css

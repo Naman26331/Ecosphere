@@ -46,23 +46,23 @@ export default function registerRoutes(r) {
     const { email, password } = await readJson(req);
     if (!email || !password) throw bad('Email and password are required');
 
-    const { token, user } = auth.login(email, password); // throws 401 if wrong
+    const { token, user } = await auth.login(email, password); // throws 401 if wrong
 
     res.setHeader('Set-Cookie', auth.sessionCookie(token));
-    audit(user.name, 'login', 'user', user.id, user.email);
+    await audit(user.name, 'login', 'user', user.id, user.email);
     return { user };
   });
 
-  r.post('/api/auth/logout', (req, res) => {
-    const user = auth.currentUser(req);
-    if (user) audit(user.name, 'logout', 'user', user.id, user.email);
+  r.post('/api/auth/logout', async (req, res) => {
+    const user = await auth.currentUser(req);
+    if (user) await audit(user.name, 'logout', 'user', user.id, user.email);
     res.setHeader('Set-Cookie', auth.clearCookie());
     return { ok: true };
   });
 
   /** Who am I? The shell calls this on every page to render the real user. */
-  r.get('/api/auth/me', (req) => {
-    const user = auth.currentUser(req);
+  r.get('/api/auth/me', async (req) => {
+    const user = await auth.currentUser(req);
     if (!user) throw bad('Not signed in', 401);
     // is_admin is computed here so the front end never has to know the role
     // vocabulary -- it just asks "am I an admin?" and hides UI accordingly.
@@ -132,23 +132,23 @@ export default function registerRoutes(r) {
   // DASHBOARD
   // =========================================================================
 
-  r.get('/api/dashboard', () => {
-    const o = esg.overall();
-    const ytd = get(
+  r.get('/api/dashboard', async () => {
+    const o = await esg.overall();
+    const ytd = await get(
       `SELECT ROUND(COALESCE(SUM(co2e_kg), 0) / 1000.0, 1) AS tco2e
          FROM carbon_transactions
         WHERE status = 'verified' AND activity_date >= date('now', 'start of year')`
     ).tco2e;
 
     // How much of the ledger the AI pipeline built without anyone typing.
-    const auto = get(
+    const auto = await get(
       `SELECT COUNT(*) AS total,
               SUM(CASE WHEN source = 'ocr' THEN 1 ELSE 0 END) AS ocr
          FROM carbon_transactions`
     );
 
     return {
-      org: get(`SELECT value FROM settings WHERE key = 'org_name'`)?.value ?? 'EcoSphere',
+      org: await get(`SELECT value FROM settings WHERE key = 'org_name'`)?.value ?? 'EcoSphere',
       score: o.score,
       pillars: {
         environmental: o.environmental,
@@ -156,35 +156,33 @@ export default function registerRoutes(r) {
         governance: o.governance,
       },
       weights: o.weights,
-      leaderboard: esg.leaderboard(),
-      trend: esg.emissionsTrend(6),
+      leaderboard: await esg.leaderboard(),
+      trend: await esg.emissionsTrend(6),
       stats: {
         emissions_ytd_tco2e: ytd,
         transactions: auto.total,
         ocr_automated_pct: auto.total ? Math.round((auto.ocr / auto.total) * 100) : 0,
-        open_issues: get(
+        open_issues: await get(
           `SELECT COUNT(*) AS n FROM compliance_issues WHERE status <> 'resolved'`
         ).n,
-        pending_reviews: get(
+        pending_reviews: await get(
           `SELECT COUNT(*) AS n FROM participations WHERE status = 'pending'`
         ).n,
-        active_employees: get(
+        active_employees: await get(
           `SELECT COUNT(DISTINCT user_id) AS n FROM participations WHERE status = 'approved'`
         ).n,
       },
-      activity: all(
+      activity: await all(
         `SELECT actor, action, entity, detail, created_at
            FROM audit_log ORDER BY id DESC LIMIT 8`
       ),
     };
   });
 
-  r.get('/api/departments', () =>
-    all(`SELECT id, name, code, head, employee_count FROM departments ORDER BY name`)
+  r.get('/api/departments', async () => await all(`SELECT id, name, code, head, employee_count FROM departments ORDER BY name`)
   );
 
-  r.get('/api/audit-log', () =>
-    all(`SELECT * FROM audit_log ORDER BY id DESC LIMIT 100`)
+  r.get('/api/audit-log', async () => await all(`SELECT * FROM audit_log ORDER BY id DESC LIMIT 100`)
   );
 
   // =========================================================================
@@ -289,9 +287,9 @@ export default function registerRoutes(r) {
   // ENVIRONMENTAL
   // =========================================================================
 
-  r.get('/api/environmental', () => {
-    const e = esg.environmental();
-    const byCategory = all(
+  r.get('/api/environmental', async () => {
+    const e = await esg.environmental();
+    const byCategory = await all(
       `SELECT ef.category,
               ROUND(SUM(ct.co2e_kg) / 1000.0, 2) AS tco2e,
               ef.scope
@@ -300,7 +298,7 @@ export default function registerRoutes(r) {
         WHERE ct.status = 'verified'
         GROUP BY ef.category ORDER BY tco2e DESC`
     );
-    const byScope = all(
+    const byScope = await all(
       `SELECT 'Scope ' || ef.scope AS scope,
               ROUND(SUM(ct.co2e_kg) / 1000.0, 2) AS tco2e
          FROM carbon_transactions ct
@@ -311,23 +309,22 @@ export default function registerRoutes(r) {
     return {
       score: e.score,
       kpis: e.kpis,
-      trend: esg.emissionsTrend(12),
+      trend: await esg.emissionsTrend(12),
       byCategory,
       byScope,
       renewableMix: Number(
-        get(`SELECT value FROM settings WHERE key = 'renewable_mix'`)?.value ?? 0
+        await get(`SELECT value FROM settings WHERE key = 'renewable_mix'`)?.value ?? 0
       ),
       // "Avoided emissions" = what we'd have emitted had we stayed at baseline.
-      avoided: (() => {
-        const goals = all(`SELECT baseline_co2, current_co2 FROM esg_goals`);
+      avoided: await (async () => {
+        const goals = await all(`SELECT baseline_co2, current_co2 FROM esg_goals`);
         const saved = goals.reduce((s, g) => s + Math.max(0, g.baseline_co2 - g.current_co2), 0);
         return { tco2e: Math.round(saved * 10) / 10, trees: Math.round((saved * 1000) / 21) };
       })(),
     };
   });
 
-  r.get('/api/goals', () =>
-    all(
+  r.get('/api/goals', async () => await all(
       `SELECT g.*, d.name AS department,
               ROUND(
                 CASE WHEN g.baseline_co2 - g.target_co2 > 0
@@ -348,7 +345,7 @@ export default function registerRoutes(r) {
     const current = num(b.current_co2) ?? baseline;
     if (baseline < target) throw bad('baseline_co2 must be greater than target_co2');
 
-    const { id } = run(
+    const { id } = await run(
       `INSERT INTO esg_goals
          (name, department_id, baseline_co2, target_co2, current_co2, deadline, status)
        VALUES (?, ?, ?, ?, ?, ?, 'pending')`,
@@ -358,15 +355,14 @@ export default function registerRoutes(r) {
     return get(`SELECT * FROM esg_goals WHERE id = ?`, [id]);
   });
 
-  r.get('/api/emission-factors', () =>
-    all(`SELECT * FROM emission_factors ORDER BY category, activity`)
+  r.get('/api/emission-factors', async () => await all(`SELECT * FROM emission_factors ORDER BY category, activity`)
   );
 
-  r.get('/api/carbon-transactions', (req) => {
+  r.get('/api/carbon-transactions', async (req) => {
     const url = new URL(req.url, 'http://localhost');
     const limit = Math.min(Number(url.searchParams.get('limit')) || 25, 200);
     const dept = url.searchParams.get('department_id');
-    return all(
+    return await all(
       `SELECT ct.id, ct.activity_date, ct.quantity, ct.co2e_kg, ct.source,
               ct.status, ct.ai_confidence, ct.document_ref,
               ef.activity, ef.unit, ef.category, ef.scope,
@@ -388,13 +384,13 @@ export default function registerRoutes(r) {
   /** Manual entry. The OCR route below does the same thing without the typing. */
   r.post('/api/carbon-transactions', async (req) => {
     const b = await readJson(req);
-    const factor = get(`SELECT * FROM emission_factors WHERE id = ?`, [num(b.emission_factor_id)]);
+    const factor = await get(`SELECT * FROM emission_factors WHERE id = ?`, [num(b.emission_factor_id)]);
     if (!factor) throw bad('Unknown emission_factor_id');
     const quantity = num(b.quantity);
     if (!quantity || quantity <= 0) throw bad('quantity must be a positive number');
 
     const co2e = Math.round(quantity * factor.factor_kgco2e * 100) / 100;
-    const { id } = run(
+    const { id } = await run(
       `INSERT INTO carbon_transactions
          (department_id, emission_factor_id, user_id, activity_date, quantity,
           co2e_kg, source, status)
@@ -431,8 +427,8 @@ export default function registerRoutes(r) {
 
     // 2. Match what it read to the emission factor that prices it in CO2e.
     const factor =
-      get(`SELECT * FROM emission_factors WHERE activity = ?`, [x.activity]) ??
-      get(`SELECT * FROM emission_factors WHERE unit = ? LIMIT 1`, [x.unit]);
+      await get(`SELECT * FROM emission_factors WHERE activity = ?`, [x.activity]) ??
+      await get(`SELECT * FROM emission_factors WHERE unit = ? LIMIT 1`, [x.unit]);
     if (!factor) throw bad(`No emission factor configured for "${x.activity}"`);
 
     // 3. Do the arithmetic the user would otherwise do by hand.
@@ -440,12 +436,12 @@ export default function registerRoutes(r) {
 
     // 4. Confident reads post straight to the ledger; shaky ones wait for a human.
     const threshold = Number(
-      get(`SELECT value FROM settings WHERE key = 'ocr_auto_post_threshold'`)?.value ?? 0.8
+      await get(`SELECT value FROM settings WHERE key = 'ocr_auto_post_threshold'`)?.value ?? 0.8
     );
     const status = x.confidence >= threshold ? 'verified' : 'pending';
 
     const docRef = saveUpload(file);
-    const { id } = run(
+    const { id } = await run(
       `INSERT INTO carbon_transactions
          (department_id, emission_factor_id, user_id, activity_date, quantity,
           co2e_kg, source, document_ref, ai_confidence, status)
@@ -463,7 +459,7 @@ export default function registerRoutes(r) {
       ]
     );
 
-    audit(fields.actor ?? 'AI Pipeline', 'ocr_transaction', 'carbon_transaction', id,
+    await audit(fields.actor ?? 'AI Pipeline', 'ocr_transaction', 'carbon_transaction', id,
       `${file.filename}: ${x.quantity} ${factor.unit} ${factor.activity} -> ${co2e} kgCO2e`);
 
     return {
@@ -492,7 +488,7 @@ export default function registerRoutes(r) {
   r.post('/api/ai/chat', async (req) => {
     const { question } = await readJson(req);
     if (!question || !question.trim()) throw bad('question is required');
-    const res = ai.askChatbot(question);
+    const res = await ai.askChatbot(question);
     return { ...res, provider: ai.providerName, question };
   });
 
@@ -500,26 +496,25 @@ export default function registerRoutes(r) {
   // SOCIAL + GAMIFICATION
   // =========================================================================
 
-  r.get('/api/social', () => {
-    const s = esg.social();
+  r.get('/api/social', async () => {
+    const s = await esg.social();
     return {
       score: s.score,
       kpis: s.kpis,
-      byCategory: all(
+      byCategory: await all(
         `SELECT c.category,
                 COUNT(p.id) AS submissions,
                 SUM(CASE WHEN p.status = 'approved' THEN 1 ELSE 0 END) AS approved
            FROM challenges c LEFT JOIN participations p ON p.challenge_id = c.id
           GROUP BY c.category ORDER BY submissions DESC`
       ),
-      pendingReviews: get(
+      pendingReviews: await get(
         `SELECT COUNT(*) AS n FROM participations WHERE status = 'pending'`
       ).n,
     };
   });
 
-  r.get('/api/challenges', () =>
-    all(
+  r.get('/api/challenges', async () => await all(
       `SELECT c.*,
               COUNT(p.id) AS submissions,
               SUM(CASE WHEN p.status = 'approved' THEN 1 ELSE 0 END) AS approved
@@ -528,10 +523,10 @@ export default function registerRoutes(r) {
     )
   );
 
-  r.get('/api/participations', (req) => {
+  r.get('/api/participations', async (req) => {
     const url = new URL(req.url, 'http://localhost');
     const status = url.searchParams.get('status');
-    return all(
+    return await all(
       `SELECT p.id, p.status, p.ai_confidence, p.ai_reason, p.proof_url,
               p.points_awarded, p.submitted_at,
               u.name AS employee, d.name AS department,
@@ -552,8 +547,7 @@ export default function registerRoutes(r) {
    * rule is enforced by the UI never offering an impossible choice -- rather
    * than by the user discovering it as an error after they've picked a photo.
    */
-  r.get('/api/challenges/:id/eligible', (req) =>
-    all(
+  r.get('/api/challenges/:id/eligible', async (req) => await all(
       `SELECT u.id, u.name, u.xp, d.name AS department
          FROM users u
          LEFT JOIN departments d ON d.id = u.department_id
@@ -576,24 +570,24 @@ export default function registerRoutes(r) {
     const file = files.find((f) => f.field === 'proof') ?? files[0];
     if (!file) throw bad('No proof photo uploaded');
 
-    const challenge = get(`SELECT * FROM challenges WHERE id = ?`, [challengeId]);
+    const challenge = await get(`SELECT * FROM challenges WHERE id = ?`, [challengeId]);
     if (!challenge) throw bad('Unknown challenge', 404);
 
     const userId = num(fields.user_id);
     if (!userId) throw bad('user_id is required');
-    if (get(`SELECT id FROM participations WHERE challenge_id = ? AND user_id = ?`, [challengeId, userId])) {
+    if (await get(`SELECT id FROM participations WHERE challenge_id = ? AND user_id = ?`, [challengeId, userId])) {
       throw bad('You have already submitted proof for this challenge', 409);
     }
 
     const v = ai.verifyPhoto(file, challenge.category);
-    const threshold = gamify.autoApproveThreshold();
+    const threshold = await gamify.autoApproveThreshold();
     const autoApprove = v.match && v.confidence >= threshold;
     const proofUrl = saveUpload(file);
 
     // Always land as pending (or rejected outright). If the AI is confident,
-    // gamify.approve() promotes it a line later -- so points, XP and badges are
+    // await gamify.approve() promotes it a line later -- so points, XP and badges are
     // only ever minted in that one place, never here.
-    const { id } = run(
+    const { id } = await run(
       `INSERT INTO participations
          (challenge_id, user_id, proof_url, status, ai_confidence, ai_reason, points_awarded)
        VALUES (?, ?, ?, ?, ?, ?, 0)`,
@@ -601,9 +595,9 @@ export default function registerRoutes(r) {
     );
 
     let award = null;
-    if (autoApprove) award = gamify.approve(id, 'AI Vision');
+    if (autoApprove) award = await gamify.approve(id, 'AI Vision');
 
-    audit(
+    await audit(
       'AI Vision', autoApprove ? 'proof_auto_approved' : v.match ? 'proof_queued' : 'proof_rejected',
       'participation', id,
       `${challenge.title}: ${(v.confidence * 100).toFixed(0)}% — ${v.reason}`
@@ -614,7 +608,7 @@ export default function registerRoutes(r) {
       provider: ai.providerName,
       verification: v,
       autoApproved: autoApprove,
-      status: get(`SELECT status FROM participations WHERE id = ?`, [id]).status,
+      status: await get(`SELECT status FROM participations WHERE id = ?`, [id]).status,
       award,
       message: autoApprove
         ? `Verified at ${(v.confidence * 100).toFixed(0)}% confidence. ${award.pointsAwarded} points and ${award.xpAwarded} XP awarded${award.newBadges.length ? `, and you unlocked "${award.newBadges.map((b) => b.name).join('", "')}"!` : '.'}`
@@ -635,13 +629,12 @@ export default function registerRoutes(r) {
     throw bad("decision must be 'approve' or 'reject'");
   });
 
-  r.get('/api/leaderboard', () => ({
-    departments: esg.leaderboard(),
-    employees: gamify.topEmployees(10),
+  r.get('/api/leaderboard', async () => ({
+    departments: await esg.leaderboard(),
+    employees: await gamify.topEmployees(10),
   }));
 
-  r.get('/api/badges', () =>
-    all(
+  r.get('/api/badges', async () => await all(
       `SELECT b.*, COUNT(ub.user_id) AS holders
          FROM badges b LEFT JOIN user_badges ub ON ub.badge_id = b.id
         GROUP BY b.id ORDER BY b.xp_threshold`
@@ -657,9 +650,9 @@ export default function registerRoutes(r) {
    * `affordable` / `canRedeem` are computed server-side against req.user, so the
    * button state can't be talked into lying by editing the page.
    */
-  r.get('/api/rewards', (req) => {
+  r.get('/api/rewards', async (req) => {
     const me = req.user;
-    const rewards = all(
+    const rewards = await all(
       `SELECT rw.*,
               (SELECT COUNT(*) FROM redemptions rd WHERE rd.reward_id = rw.id) AS redeemed_count
          FROM rewards rw
@@ -680,9 +673,9 @@ export default function registerRoutes(r) {
   });
 
   /** Redeem. The user comes from the session -- never from the request body. */
-  r.post('/api/rewards/:id/redeem', (req) => {
+  r.post('/api/rewards/:id/redeem', async (req) => {
     const me = req.user;
-    const result = gamify.redeem(Number(req.params.id), me.id, me.name);
+    const result = await gamify.redeem(Number(req.params.id), me.id, me.name);
     return {
       ...result,
       message: `Redeemed "${result.reward.name}" for ${result.pointsSpent} points. ${result.pointsBalance} points left.`,
@@ -690,10 +683,10 @@ export default function registerRoutes(r) {
   });
 
   /** Redemption history. `?mine=true` for just the signed-in user. */
-  r.get('/api/redemptions', (req) => {
+  r.get('/api/redemptions', async (req) => {
     const url = new URL(req.url, 'http://localhost');
     const mine = url.searchParams.get('mine') === 'true';
-    return all(
+    return await all(
       `SELECT rd.id, rd.points_spent, rd.status, rd.redeemed_at,
               rw.name AS reward, rw.icon,
               u.name AS employee, d.name AS department
@@ -711,31 +704,31 @@ export default function registerRoutes(r) {
   // GOVERNANCE
   // =========================================================================
 
-  r.get('/api/governance', () => {
-    const g = esg.governance();
+  r.get('/api/governance', async () => {
+    const g = await esg.governance();
     return {
       score: g.score,
       kpis: g.kpis,
       counts: g.counts,
-      bySeverity: all(
+      bySeverity: await all(
         `SELECT severity, COUNT(*) AS n FROM compliance_issues
           WHERE status <> 'resolved' GROUP BY severity`
       ),
-      byFramework: all(
+      byFramework: await all(
         `SELECT framework,
                 COUNT(*) AS total,
                 SUM(CASE WHEN status = 'resolved' THEN 1 ELSE 0 END) AS resolved
            FROM compliance_issues GROUP BY framework ORDER BY framework`
       ),
-      policies: all(`SELECT * FROM policies ORDER BY framework, name`),
+      policies: await all(`SELECT * FROM policies ORDER BY framework, name`),
     };
   });
 
-  r.get('/api/compliance-issues', (req) => {
+  r.get('/api/compliance-issues', async (req) => {
     const url = new URL(req.url, 'http://localhost');
     const status = url.searchParams.get('status');
     const overdue = url.searchParams.get('overdue') === 'true';
-    return all(
+    return await all(
       `SELECT ci.*, d.name AS department, u.name AS owner,
               CASE WHEN ci.status <> 'resolved' AND ci.due_date < date('now')
                    THEN 1 ELSE 0 END AS is_overdue
@@ -756,11 +749,11 @@ export default function registerRoutes(r) {
   r.patch('/api/compliance-issues/:id', async (req) => {
     const id = Number(req.params.id);
     const b = await readJson(req);
-    const issue = get(`SELECT * FROM compliance_issues WHERE id = ?`, [id]);
+    const issue = await get(`SELECT * FROM compliance_issues WHERE id = ?`, [id]);
     if (!issue) throw bad('Issue not found', 404);
     if (!['open', 'in_progress', 'resolved'].includes(b.status)) throw bad('Invalid status');
 
-    run(
+    await run(
       `UPDATE compliance_issues
           SET status = ?, resolved_at = CASE WHEN ? = 'resolved' THEN datetime('now') ELSE NULL END
         WHERE id = ?`,
@@ -768,15 +761,14 @@ export default function registerRoutes(r) {
     );
     audit(req.user?.name ?? b.actor ?? 'System', 'issue_status_changed', 'compliance_issue', id,
       `${issue.status} -> ${b.status}: ${issue.title}`);
-    return get(`SELECT * FROM compliance_issues WHERE id = ?`, [id]);
+    return await get(`SELECT * FROM compliance_issues WHERE id = ?`, [id]);
   });
 
   // =========================================================================
   // REPORTS
   // =========================================================================
 
-  r.get('/api/reports', () =>
-    all(
+  r.get('/api/reports', async () => await all(
       `SELECT r.*, u.name AS author FROM reports r
        LEFT JOIN users u ON u.id = r.created_by
        ORDER BY r.generated_at DESC`
@@ -792,22 +784,22 @@ export default function registerRoutes(r) {
     if (!b.title) throw bad('title is required');
     const type = b.type ?? 'custom';
 
-    const o = esg.overall(num(b.department_id));
+    const o = await esg.overall(num(b.department_id));
     const snapshot = {
       generated: new Date().toISOString(),
       scope: b.department_id
-        ? get(`SELECT name FROM departments WHERE id = ?`, [num(b.department_id)])?.name
+        ? await get(`SELECT name FROM departments WHERE id = ?`, [num(b.department_id)])?.name
         : 'Organisation-wide',
       overall: o.score,
       environmental: o.environmental,
       social: o.social,
       governance: o.governance,
-      emissions: esg.emissionsTrend(12, num(b.department_id)),
+      emissions: await esg.emissionsTrend(12, num(b.department_id)),
     };
 
     // Freeze the snapshot onto the row. Re-opening this report next quarter must
     // show what it said today, not today's numbers recomputed.
-    const { id } = run(
+    const { id } = await run(
       `INSERT INTO reports (title, type, framework, period, status, snapshot, created_by)
        VALUES (?, ?, ?, ?, 'ready', ?, ?)`,
       [b.title, type, b.framework ?? 'GRI', b.period ?? 'Custom', JSON.stringify(snapshot), num(b.user_id) ?? 1]
@@ -816,15 +808,15 @@ export default function registerRoutes(r) {
     return { id, title: b.title, snapshot };
   });
 
-  r.get('/api/reports/:id', (req) => {
-    const report = get(`SELECT * FROM reports WHERE id = ?`, [Number(req.params.id)]);
+  r.get('/api/reports/:id', async (req) => {
+    const report = await get(`SELECT * FROM reports WHERE id = ?`, [Number(req.params.id)]);
     if (!report) throw bad('Report not found', 404);
 
     // Seeded reports predate the snapshot column; fall back to a live computation
     // for those, but anything generated through the builder replays exactly.
     if (report.snapshot) return { ...report, snapshot: JSON.parse(report.snapshot) };
 
-    const o = esg.overall();
+    const o = await esg.overall();
     return {
       ...report,
       snapshot: {
@@ -833,7 +825,7 @@ export default function registerRoutes(r) {
         environmental: o.environmental,
         social: o.social,
         governance: o.governance,
-        emissions: esg.emissionsTrend(12),
+        emissions: await esg.emissionsTrend(12),
         live: true, // this one was reconstructed, not replayed
       },
     };
@@ -848,11 +840,11 @@ export default function registerRoutes(r) {
    * `?unread=true` returns only unread ones (used for the badge counter).
    * Broadcasting notifications (user_id IS NULL) are included for every user.
    */
-  r.get('/api/notifications', (req) => {
+  r.get('/api/notifications', async (req) => {
     const url = new URL(req.url, 'http://localhost');
     const unread = url.searchParams.get('unread') === 'true';
     const me = req.user;
-    return all(
+    return await all(
       `SELECT * FROM notifications
         WHERE (user_id = ? OR user_id IS NULL)
           ${unread ? 'AND read = 0' : ''}
@@ -862,16 +854,16 @@ export default function registerRoutes(r) {
   });
 
   /** Mark a single notification as read. */
-  r.post('/api/notifications/:id/read', (req) => {
+  r.post('/api/notifications/:id/read', async (req) => {
     const id = Number(req.params.id);
-    run(`UPDATE notifications SET read = 1 WHERE id = ?`, [id]);
+    await run(`UPDATE notifications SET read = 1 WHERE id = ?`, [id]);
     return { ok: true };
   });
 
   /** Mark ALL of the signed-in user's notifications as read. */
-  r.post('/api/notifications/read-all', (req) => {
+  r.post('/api/notifications/read-all', async (req) => {
     const me = req.user;
-    run(`UPDATE notifications SET read = 1 WHERE user_id = ? OR user_id IS NULL`, [me.id]);
+    await run(`UPDATE notifications SET read = 1 WHERE user_id = ? OR user_id IS NULL`, [me.id]);
     return { ok: true };
   });
 
@@ -896,7 +888,7 @@ export default function registerRoutes(r) {
     // ERP systems call this with an X-Api-Key header. The key is stored in
     // settings so it can be rotated from the Settings UI. If no key is
     // configured we fall back to requiring a session (req.user).
-    const configuredKey = get(`SELECT value FROM settings WHERE key = 'erp_api_key'`)?.value;
+    const configuredKey = await get(`SELECT value FROM settings WHERE key = 'erp_api_key'`)?.value;
     const providedKey = req.headers['x-api-key'];
     const hasValidApiKey = configuredKey && providedKey && providedKey === configuredKey;
     if (!hasValidApiKey && !req.user) {
@@ -910,7 +902,7 @@ export default function registerRoutes(r) {
     if (!quantity || quantity <= 0) throw bad('quantity must be a positive number');
 
     // Match the ERP item name to an emission factor (case-insensitive partial match).
-    const factor = get(
+    const factor = await get(
       `SELECT * FROM emission_factors
         WHERE lower(activity) = lower(?)
            OR lower(activity) LIKE '%' || lower(?) || '%'
@@ -919,14 +911,14 @@ export default function registerRoutes(r) {
     );
     if (!factor) {
       throw bad(`No emission factor configured for "${b.item}". ` +
-        `Available activities: ${all('SELECT activity FROM emission_factors').map(r => r.activity).join(', ')}`);
+        `Available activities: ${await all('SELECT activity FROM emission_factors').map(r => r.activity).join(', ')}`);
     }
 
     const co2e = Math.round(quantity * factor.factor_kgco2e * 100) / 100;
     const deptId = num(b.department_id) ?? 1;
     const activityDate = b.date ?? new Date().toISOString().slice(0, 10);
 
-    const { id } = run(
+    const { id } = await run(
       `INSERT INTO carbon_transactions
          (department_id, emission_factor_id, activity_date, quantity,
           co2e_kg, source, status)
@@ -934,14 +926,14 @@ export default function registerRoutes(r) {
       [deptId, factor.id, activityDate, quantity, co2e]
     );
 
-    const dept = get(`SELECT name FROM departments WHERE id = ?`, [deptId])?.name ?? 'Unknown';
-    audit('ERP Webhook', 'erp_transaction', 'carbon_transaction', id,
+    const dept = await get(`SELECT name FROM departments WHERE id = ?`, [deptId])?.name ?? 'Unknown';
+    await audit('ERP Webhook', 'erp_transaction', 'carbon_transaction', id,
       `${b.event ?? 'event'}: ${quantity} ${factor.unit} ${factor.activity} = ${co2e} kgCO2e [${dept}]`);
 
     // Notify all officers/managers about the new auto-logged emission.
-    const notifyUsers = all(`SELECT id FROM users WHERE role IN ('officer', 'manager')`);
+    const notifyUsers = await all(`SELECT id FROM users WHERE role IN ('officer', 'manager')`);
     for (const u of notifyUsers) {
-      run(
+      await run(
         `INSERT INTO notifications (user_id, type, title, message, icon, link)
          VALUES (?, 'erp', ?, ?, 'precision_manufacturing', '/environment.html')`,
         [u.id,
@@ -983,7 +975,7 @@ export default function registerRoutes(r) {
    *   scope          – 1 | 2 | 3
    *   format         – csv (default) | json
    */
-  r.get('/api/reports/export', (req, res) => {
+  r.get('/api/reports/export', async (req, res) => {
     const url = new URL(req.url, 'http://localhost');
     const deptId  = url.searchParams.get('department_id');
     const start   = url.searchParams.get('start');
@@ -1000,7 +992,7 @@ export default function registerRoutes(r) {
     if (cat)     { clauses.push('ef.category = ?');        params.push(cat); }
     if (scope)   { clauses.push('ef.scope = ?');           params.push(Number(scope)); }
 
-    const rows = all(
+    const rows = await all(
       `SELECT ct.activity_date, d.name AS department, ef.category, ef.activity,
               ef.scope, ct.quantity, ef.unit, ct.co2e_kg, ct.source,
               ef.factor_kgco2e, ef.source AS factor_source, ct.document_ref
@@ -1041,13 +1033,13 @@ export default function registerRoutes(r) {
   // SETTINGS
   // =========================================================================
 
-  r.get('/api/settings', () => {
-    const rows = all(`SELECT key, value FROM settings ORDER BY key`);
+  r.get('/api/settings', async () => {
+    const rows = await all(`SELECT key, value FROM settings ORDER BY key`);
     return {
       settings: Object.fromEntries(rows.map((s) => [s.key, s.value])),
-      departments: all(`SELECT id, name, code, head, employee_count FROM departments ORDER BY name`),
-      emissionFactors: all(`SELECT * FROM emission_factors ORDER BY category, activity`),
-      badges: all(`SELECT * FROM badges ORDER BY xp_threshold`),
+      departments: await all(`SELECT id, name, code, head, employee_count FROM departments ORDER BY name`),
+      emissionFactors: await all(`SELECT * FROM emission_factors ORDER BY category, activity`),
+      badges: await all(`SELECT * FROM badges ORDER BY xp_threshold`),
     };
   });
 
@@ -1064,7 +1056,7 @@ export default function registerRoutes(r) {
     const w = ['weight_environmental', 'weight_social', 'weight_governance'];
     if (w.some((k) => k in b.settings)) {
       const current = Object.fromEntries(
-        all(`SELECT key, value FROM settings WHERE key LIKE 'weight_%'`).map((s) => [s.key, s.value])
+        await all(`SELECT key, value FROM settings WHERE key LIKE 'weight_%'`).map((s) => [s.key, s.value])
       );
       const merged = w.map((k) => Number(b.settings[k] ?? current[k] ?? 0));
       const total = merged.reduce((a, c) => a + c, 0);
@@ -1073,9 +1065,9 @@ export default function registerRoutes(r) {
       }
     }
 
-    tx(() => {
+    await tx(async () => {
       for (const [k, v] of entries) {
-        run(
+        await run(
           `INSERT INTO settings (key, value) VALUES (?, ?)
            ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
           [k, String(v)]
@@ -1085,12 +1077,12 @@ export default function registerRoutes(r) {
     audit(req.user?.name ?? b.actor ?? 'System', 'settings_updated', 'settings', null,
       entries.map(([k, v]) => `${k}=${v}`).join(', '));
 
-    return Object.fromEntries(all(`SELECT key, value FROM settings`).map((s) => [s.key, s.value]));
+    return Object.fromEntries(await all(`SELECT key, value FROM settings`).map((s) => [s.key, s.value]));
   });
 
-  r.get('/api/health', () => ({
+  r.get('/api/health', async () => ({
     ok: true,
     provider: ai.providerName,
-    transactions: get(`SELECT COUNT(*) AS n FROM carbon_transactions`).n,
+    transactions: await get(`SELECT COUNT(*) AS n FROM carbon_transactions`).n,
   }));
 }

@@ -4,7 +4,7 @@
 // text layer of an upload; askChatbot really compiles a question into SQL and
 // runs it against the live database. Swapping in Gemini upgrades the accuracy
 // of these three functions -- it does not change what they mean.
-import { all, get } from '../../db.js';
+import { all, get, IS_PG } from '../../db.js';
 import { overall } from '../../lib/esg.js';
 
 // --- OCR ---------------------------------------------------------------------
@@ -137,10 +137,10 @@ export function verifyPhoto(file, category) {
  * The SQL it ran is returned alongside the answer so the UI can show its
  * working -- an ESG answer nobody can audit is worthless.
  */
-export function askChatbot(question) {
+export async function askChatbot(question) {
   const q = question.toLowerCase().trim();
   for (const intent of INTENTS) {
-    if (intent.match.test(q)) return intent.run(q);
+    if (intent.match.test(q)) return await intent.run(q);
   }
   return {
     answer:
@@ -150,8 +150,8 @@ export function askChatbot(question) {
 }
 
 // Pull a department name out of the question by matching against the real table.
-function findDepartment(q) {
-  const depts = all(`SELECT id, name, code FROM departments`);
+async function findDepartment(q) {
+  const depts = await await all(`SELECT id, name, code FROM departments`);
   return (
     depts.find((d) => q.includes(d.name.toLowerCase())) ??
     depts.find((d) => new RegExp(`\\b${d.code.toLowerCase()}\\b`).test(q)) ??
@@ -163,15 +163,15 @@ const INTENTS = [
   {
     // "overdue compliance issues in IT"
     match: /(overdue|late|past due|breach).*(issue|compliance|item)|(issue|compliance).*(overdue|late|past due)/,
-    run(q) {
-      const dept = findDepartment(q);
+    async run(q) {
+      const dept = await findDepartment(q);
       const sql = `SELECT ci.title, ci.severity, ci.due_date, d.name AS department
                      FROM compliance_issues ci
                      LEFT JOIN departments d ON d.id = ci.department_id
-                    WHERE ci.status <> 'resolved' AND ci.due_date < date('now')
+                     WHERE ci.status <> 'resolved' AND ci.due_date < CURRENT_DATE
                       ${dept ? 'AND ci.department_id = ?' : ''}
                     ORDER BY ci.due_date`;
-      const rows = all(sql, dept ? [dept.id] : []);
+      const rows = await all(sql, dept ? [dept.id] : []);
       const where = dept ? ` in ${dept.name}` : '';
       return {
         answer: rows.length
@@ -185,15 +185,15 @@ const INTENTS = [
   {
     // "open compliance issues"
     match: /(open|outstanding|pending|how many).*(issue|compliance)/,
-    run(q) {
-      const dept = findDepartment(q);
+    async run(q) {
+      const dept = await findDepartment(q);
       const sql = `SELECT ci.title, ci.severity, ci.status, ci.due_date, d.name AS department
                      FROM compliance_issues ci
                      LEFT JOIN departments d ON d.id = ci.department_id
                     WHERE ci.status <> 'resolved' ${dept ? 'AND ci.department_id = ?' : ''}
                     ORDER BY CASE ci.severity WHEN 'critical' THEN 1 WHEN 'high' THEN 2
                                               WHEN 'medium' THEN 3 ELSE 4 END`;
-      const rows = all(sql, dept ? [dept.id] : []);
+      const rows = await all(sql, dept ? [dept.id] : []);
       const crit = rows.filter((r) => r.severity === 'critical' || r.severity === 'high').length;
       return {
         answer: `${rows.length} compliance issue${rows.length === 1 ? '' : 's'} still open${dept ? ` in ${dept.name}` : ''}${crit ? `, of which ${crit} ${crit === 1 ? 'is' : 'are'} high or critical severity` : ''}.`,
@@ -205,18 +205,21 @@ const INTENTS = [
   {
     // "carbon emissions this quarter" / "how much CO2 did Manufacturing emit"
     match: /(carbon|co2|emission|footprint|tco2)/,
-    run(q) {
-      const dept = findDepartment(q);
+    async run(q) {
+      const dept = await findDepartment(q);
       const months = /year/.test(q) ? 12 : /month/.test(q) ? 1 : 3;
+      const dateFilter = IS_PG
+        ? `ct.activity_date >= NOW() - INTERVAL '${months} months'`
+        : `ct.activity_date >= date('now', '-${months} months')`;
       const sql = `SELECT ef.category,
                           ROUND(SUM(ct.co2e_kg) / 1000.0, 2) AS tco2e
                      FROM carbon_transactions ct
                      JOIN emission_factors ef ON ef.id = ct.emission_factor_id
                     WHERE ct.status = 'verified'
-                      AND ct.activity_date >= date('now', '-${months} months')
+                      AND ${dateFilter}
                       ${dept ? 'AND ct.department_id = ?' : ''}
                     GROUP BY ef.category ORDER BY tco2e DESC`;
-      const rows = all(sql, dept ? [dept.id] : []);
+      const rows = await all(sql, dept ? [dept.id] : []);
       const total = rows.reduce((s, r) => s + r.tco2e, 0);
       const window = months === 12 ? 'the last 12 months' : months === 1 ? 'the last month' : 'the last quarter';
       return {
@@ -231,11 +234,11 @@ const INTENTS = [
   {
     // "which department is doing best" / "leaderboard" / "ranking"
     match: /(rank|leaderboard|best|top|worst|which department|compare department)/,
-    run(q) {
+    async run(q) {
       const sql = `SELECT id, name FROM departments`;
       const worst = /worst|lowest|behind|struggling/.test(q);
-      // Scores are computed, not stored -- go through the engine, not raw SQL.
-      const board = all(sql).map((d) => ({ department: d.name, score: overall(d.id).score }));
+      const rows = await all(sql);
+      const board = await Promise.all(rows.map(async (d) => ({ department: d.name, score: (await overall(d.id)).score })));
       board.sort((a, b) => (worst ? a.score - b.score : b.score - a.score));
       const lead = board[0];
       return {
@@ -248,13 +251,13 @@ const INTENTS = [
   {
     // "goals at risk"
     match: /(goal|target|net zero|at risk)/,
-    run(q) {
+    async run(q) {
       const atRisk = /risk|behind|miss|late/.test(q);
       const sql = `SELECT g.name, g.status, g.target_co2, g.current_co2, g.deadline, d.name AS department
                      FROM esg_goals g LEFT JOIN departments d ON d.id = g.department_id
                     ${atRisk ? "WHERE g.status = 'at_risk'" : ''}
                     ORDER BY g.deadline`;
-      const rows = all(sql);
+      const rows = await all(sql);
       return {
         answer: rows.length
           ? `${rows.length} goal${rows.length === 1 ? '' : 's'}${atRisk ? ' currently at risk' : ' being tracked'}. Nearest deadline: "${rows[0].name}" (${rows[0].department ?? 'Org-wide'}) on ${rows[0].deadline}.`
@@ -269,15 +272,15 @@ const INTENTS = [
   {
     // "challenges" / "participation"
     match: /(challenge|participation|badge|xp|employee engagement)/,
-    run() {
+    async run() {
       const sql = `SELECT c.title, c.category, c.points,
                           COUNT(p.id) AS submissions,
                           SUM(CASE WHEN p.status = 'approved' THEN 1 ELSE 0 END) AS approved
                      FROM challenges c LEFT JOIN participations p ON p.challenge_id = c.id
                     WHERE c.status = 'open'
                     GROUP BY c.id ORDER BY submissions DESC`;
-      const rows = all(sql);
-      const pending = get(
+      const rows = await all(sql);
+      const pending = await get(
         `SELECT COUNT(*) AS n FROM participations WHERE status = 'pending'`
       ).n;
       return {
