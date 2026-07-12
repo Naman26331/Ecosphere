@@ -71,7 +71,16 @@
         Use your work email to access the ESG dashboard.
       </p>
 
-      <form id="login-form" class="space-y-4" novalidate>
+      <!--
+        method="post" is a seatbelt, not a feature. The form is submitted by
+        fetch() in the module below and never natively. But if that module fails
+        to load -- a cold start, a flaky network -- the browser falls back to a
+        native submit, and the DEFAULT method is GET, which appends the password
+        to the URL: /login?password=eco1234. That leaks it into the address bar,
+        browser history and every proxy log in between. POST keeps it in the body.
+        The capture-phase listener below stops the submit outright.
+      -->
+      <form id="login-form" method="post" action="/login" class="space-y-4" novalidate>
         <label class="block">
           <span class="text-label-md text-on-surface-variant">Email</span>
           <input id="email" name="email" type="email" autocomplete="username" required
@@ -151,8 +160,36 @@
   </div>
 </div>
 
+<!--
+  A CLASSIC script, deliberately not a module: it runs immediately and does not
+  depend on /assets/app.js loading. A module that 404s or fails to parse simply
+  never runs, taking the submit handler with it -- and then the browser happily
+  submits the form itself. This blocks that, whatever else has gone wrong.
+-->
+<script>
+  document.addEventListener('submit', function (e) {
+    e.preventDefault();
+  }, true); // capture phase: fires before anything else can act on the submit
+
+  // If the module hasn't booted shortly after load, say so plainly rather than
+  // leaving a dead button. On Render's free tier a cold start really can take
+  // ~50s, and silence looks identical to a broken app.
+  window.addEventListener('load', function () {
+    setTimeout(function () {
+      if (window.__loginReady) return;
+      var box = document.getElementById('error');
+      box.classList.remove('hidden');
+      box.innerHTML =
+        '<span class="material-symbols-outlined text-xl">cloud_sync</span>' +
+        '<span>The server is still waking up. Give it a few seconds, then reload.</span>';
+    }, 6000);
+  });
+</script>
+
 <script type="module">
 import { api, $ } from '/assets/app.js';
+
+window.__loginReady = true; // the classic script above watches for this
 
 const form = $('#login-form');
 const errorBox = $('#error');
@@ -205,7 +242,16 @@ form.onsubmit = async (e) => {
     const next = new URLSearchParams(location.search).get('next');
     location.href = next && next.startsWith('/') ? next : '/';
   } catch (err) {
-    showError(err.message);
+    // A TypeError from fetch means the request never reached the server at all
+    // (host asleep, no network) -- which is a completely different problem from
+    // "wrong password", and telling the user to check their password would send
+    // them down the wrong path entirely.
+    const unreachable = err instanceof TypeError || /fetch|network|load failed/i.test(err.message);
+    showError(
+      unreachable
+        ? 'Could not reach the server — it may be waking up. Try again in a few seconds.'
+        : err.message
+    );
     submit.disabled = false;
     $('#submit-label').textContent = 'Sign in';
     $('#password').select();
