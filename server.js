@@ -108,8 +108,8 @@ const server = createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`\n  EcoSphere Auto-Pilot`);
-  console.log(`  running at  http://localhost:${PORT}`);
+  console.log(`  running at  http://0.0.0.0:${PORT}`);
   console.log(`  AI provider ${process.env.AI_PROVIDER ?? 'rules'} (${process.env.AI_PROVIDER === 'nvidia' ? 'online' : 'offline'})\n`);
 });
