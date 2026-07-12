@@ -246,7 +246,7 @@ export default function registerRoutes(r) {
        VALUES (?, ?, ?, ?, ?, ?, 'pending')`,
       [b.name, num(b.department_id), baseline, target, current, b.deadline]
     );
-    audit(b.actor ?? 'Alex Rivera', 'goal_created', 'esg_goal', id, b.name);
+    audit(req.user?.name ?? b.actor ?? 'System', 'goal_created', 'esg_goal', id, b.name);
     return get(`SELECT * FROM esg_goals WHERE id = ?`, [id]);
   });
 
@@ -300,7 +300,7 @@ export default function registerRoutes(r) {
         co2e,
       ]
     );
-    audit(b.actor ?? 'Alex Rivera', 'transaction_logged', 'carbon_transaction', id,
+    audit(req.user?.name ?? b.actor ?? 'System', 'transaction_logged', 'carbon_transaction', id,
       `${quantity} ${factor.unit} ${factor.activity} = ${co2e} kgCO2e`);
     return { id, co2e_kg: co2e, factor: factor.factor_kgco2e, activity: factor.activity };
   });
@@ -520,7 +520,7 @@ export default function registerRoutes(r) {
   r.post('/api/participations/:id/review', async (req) => {
     const id = Number(req.params.id);
     const b = await readJson(req);
-    const actor = b.actor ?? 'Alex Rivera';
+    const actor = req.user?.name ?? b.actor ?? 'System';
     if (b.decision === 'approve') return gamify.approve(id, actor);
     if (b.decision === 'reject') return gamify.reject(id, b.reason, actor);
     throw bad("decision must be 'approve' or 'reject'");
@@ -657,7 +657,7 @@ export default function registerRoutes(r) {
         WHERE id = ?`,
       [b.status, b.status, id]
     );
-    audit(b.actor ?? 'Alex Rivera', 'issue_status_changed', 'compliance_issue', id,
+    audit(req.user?.name ?? b.actor ?? 'System', 'issue_status_changed', 'compliance_issue', id,
       `${issue.status} -> ${b.status}: ${issue.title}`);
     return get(`SELECT * FROM compliance_issues WHERE id = ?`, [id]);
   });
@@ -703,7 +703,7 @@ export default function registerRoutes(r) {
        VALUES (?, ?, ?, ?, 'ready', ?, ?)`,
       [b.title, type, b.framework ?? 'GRI', b.period ?? 'Custom', JSON.stringify(snapshot), num(b.user_id) ?? 1]
     );
-    audit(b.actor ?? 'Alex Rivera', 'report_generated', 'report', id, b.title);
+    audit(req.user?.name ?? b.actor ?? 'System', 'report_generated', 'report', id, b.title);
     return { id, title: b.title, snapshot };
   });
 
@@ -972,7 +972,7 @@ export default function registerRoutes(r) {
         );
       }
     });
-    audit(b.actor ?? 'Alex Rivera', 'settings_updated', 'settings', null,
+    audit(req.user?.name ?? b.actor ?? 'System', 'settings_updated', 'settings', null,
       entries.map(([k, v]) => `${k}=${v}`).join(', '));
 
     return Object.fromEntries(all(`SELECT key, value FROM settings`).map((s) => [s.key, s.value]));

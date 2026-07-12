@@ -547,6 +547,55 @@ tx(() => {
   );
 });
 
+// ---------------------------------------------------------------------------
+// Collapse to a single real account
+// ---------------------------------------------------------------------------
+// The generator above builds a full 370-person workforce so the environmental
+// and governance data has believable relationships. We then reduce that to ONE
+// account -- the app's owner -- keeping the org-level data and dropping the
+// synthetic people. New teammates are added through the sign-up page, not seeded.
+//
+// Done as a post-step (rather than by rewriting the generator) so the generation
+// logic stays untouched and correct; we just prune afterwards. The surviving
+// account inherits the demo XP, points and badges, so the rewards flow still
+// demos on day one.
+tx(() => {
+  const owner = get(
+    `SELECT id, department_id FROM users WHERE email = 'alex.rivera@vertex.example'`
+  );
+  const keep = owner.id;
+
+  // Rename the survivor to the real owner.
+  run(`UPDATE users SET name = 'Naman Gupta', email = 'naman.gupta@gmail.com' WHERE id = ?`, [keep]);
+
+  // Org-level rows worth keeping are re-attributed to the owner rather than
+  // deleted, so the Environmental ledger, Governance issues and saved reports
+  // stay populated instead of emptying out.
+  run(`UPDATE carbon_transactions SET user_id  = ? WHERE user_id  IS NOT NULL AND user_id  <> ?`, [keep, keep]);
+  run(`UPDATE compliance_issues   SET owner_id = ? WHERE owner_id IS NOT NULL AND owner_id <> ?`, [keep, keep]);
+  run(`UPDATE reports             SET created_by = ? WHERE created_by IS NOT NULL AND created_by <> ?`, [keep, keep]);
+
+  // Inherently per-person rows can't be collapsed onto one user, so they go.
+  run(`DELETE FROM participations WHERE user_id <> ?`, [keep]);
+  run(`DELETE FROM redemptions    WHERE user_id <> ?`, [keep]);
+  run(`DELETE FROM user_badges    WHERE user_id <> ?`, [keep]);
+  run(`DELETE FROM notifications  WHERE user_id IS NOT NULL AND user_id <> ?`, [keep]);
+
+  // No child rows reference the others now, so removing the users is FK-safe.
+  run(`DELETE FROM users WHERE id <> ?`, [keep]);
+
+  // Headcount must equal the rows that exist: one employee, in the owner's dept.
+  // Sign-up increments this per department, so it grows correctly as people join.
+  run(`UPDATE departments SET employee_count = 0`);
+  run(`UPDATE departments SET employee_count = 1 WHERE id = ?`, [owner.department_id]);
+
+  run(
+    `INSERT INTO audit_log (actor, action, entity, entity_id, detail)
+     VALUES ('system', 'seed', 'users', ?, 'Collapsed to single owner account: naman.gupta@gmail.com')`,
+    [keep]
+  );
+});
+
 const counts = {
   departments: get(`SELECT COUNT(*) n FROM departments`).n,
   users: get(`SELECT COUNT(*) n FROM users`).n,
