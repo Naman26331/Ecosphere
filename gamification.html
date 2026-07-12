@@ -112,37 +112,31 @@
 </div>
 </div>
 <nav class="flex-1 space-y-1">
-<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-colors group" href="#">
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-colors" href="index.html">
 <span class="material-symbols-outlined">dashboard</span>
 <span class="font-body-md text-body-md">Dashboard</span>
 </a>
-<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-colors group" href="#">
-<span class="material-symbols-outlined">eco</span>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-colors" href="Enviornment.html">
+<span class="material-symbols-outlined text-green-600">eco</span>
 <span class="font-body-md text-body-md">Environmental</span>
 </a>
-<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-colors group" href="#">
-<span class="material-symbols-outlined">group</span>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-colors" href="social.html">
+<span class="material-symbols-outlined text-blue-600">group</span>
 <span class="font-body-md text-body-md">Social</span>
 </a>
-<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-colors group" href="#">
-<span class="material-symbols-outlined">gavel</span>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-colors" href="governance.html">
+<span class="material-symbols-outlined text-purple-600">gavel</span>
 <span class="font-body-md text-body-md">Governance</span>
 </a>
-<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-secondary font-bold border-r-4 border-secondary bg-surface-container-low transition-colors group" href="#">
-<span class="material-symbols-outlined fill-icon">military_tech</span>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-orange-700 font-bold border-r-4 border-orange-500 bg-orange-50 transition-colors" href="gamification.html">
+<span class="material-symbols-outlined fill-icon" style="font-variation-settings:'FILL' 1">military_tech</span>
 <span class="font-body-md text-body-md">Gamification</span>
 </a>
-<!-- Sub-pages for Gamification -->
-<div class="pl-11 space-y-1 mt-1">
-<a class="block py-2 text-primary font-semibold text-sm" href="#">Active Challenges</a>
-<a class="block py-2 text-on-surface-variant hover:text-primary text-sm transition-colors" href="#">Team Leagues</a>
-<a class="block py-2 text-on-surface-variant hover:text-primary text-sm transition-colors" href="#">Global Perks</a>
-</div>
-<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-colors group" href="#">
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-colors" href="report.html">
 <span class="material-symbols-outlined">assessment</span>
 <span class="font-body-md text-body-md">Reports</span>
 </a>
-<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-colors group" href="#">
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-colors" href="setting.html">
 <span class="material-symbols-outlined">settings</span>
 <span class="font-body-md text-body-md">Settings</span>
 </a>
@@ -499,43 +493,38 @@
 </button>
 <!-- Mobile Navigation Bar -->
 <nav class="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-surface-container-lowest border-t border-outline-variant flex items-center justify-around px-4 z-50">
-<a class="flex flex-col items-center gap-1 text-on-surface-variant" href="#">
+<a class="flex flex-col items-center gap-1 text-on-surface-variant" href="index.html">
 <span class="material-symbols-outlined">dashboard</span>
 <span class="text-[10px] font-medium">Home</span>
 </a>
-<a class="flex flex-col items-center gap-1 text-on-surface-variant" href="#">
+<a class="flex flex-col items-center gap-1 text-on-surface-variant" href="Enviornment.html">
 <span class="material-symbols-outlined">eco</span>
 <span class="text-[10px] font-medium">Enviro</span>
 </a>
-<a class="flex flex-col items-center gap-1 text-primary" href="#">
-<span class="material-symbols-outlined fill-icon">military_tech</span>
+<a class="flex flex-col items-center gap-1 text-primary" href="gamification.html">
+<span class="material-symbols-outlined fill-icon" style="font-variation-settings:'FILL' 1">military_tech</span>
 <span class="text-[10px] font-bold">Games</span>
 </a>
-<a class="flex flex-col items-center gap-1 text-on-surface-variant" href="#">
+<a class="flex flex-col items-center gap-1 text-on-surface-variant" href="report.html">
 <span class="material-symbols-outlined">assessment</span>
 <span class="text-[10px] font-medium">Reports</span>
 </a>
-<a class="flex flex-col items-center gap-1 text-on-surface-variant" href="#">
+<a class="flex flex-col items-center gap-1 text-on-surface-variant" href="setting.html">
 <span class="material-symbols-outlined">person</span>
 <span class="text-[10px] font-medium">Profile</span>
 </a>
 </nav>
 <script>
-        // Simple micro-interaction for the join buttons
-        document.querySelectorAll('button').forEach(btn => {
-            if (btn.innerText === 'Join Challenge') {
-                btn.addEventListener('click', () => {
-                    const originalText = btn.innerText;
-                    btn.innerText = 'Joined!';
-                    btn.classList.replace('bg-primary', 'bg-secondary');
-                    setTimeout(() => {
-                        btn.innerText = originalText;
-                        btn.classList.replace('bg-secondary', 'bg-primary');
-                    }, 2000);
-                });
-            }
-        });
-
-        // Atmospheric parallax or hover effects could be added here
-    </script>
+  // Simple join challenge interaction
+  document.querySelectorAll('button').forEach(btn => {
+    if (btn.innerText.trim() === 'Join Challenge') {
+      btn.addEventListener('click', () => {
+        // Handled by csr-verify.js
+      });
+    }
+  });
+</script>
+<script src="js/app.js"></script>
+<script src="js/chatbot.js"></script>
+<script src="js/csr-verify.js"></script>
 </body></html>

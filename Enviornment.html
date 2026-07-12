@@ -127,41 +127,33 @@
 </div>
 <nav class="flex-1 flex flex-col gap-1">
 <!-- Navigation Items -->
-<a class="flex items-center gap-3 py-3 px-4 rounded-lg hover:bg-surface-container-low dark:hover:bg-surface-container-highest transition-colors duration-200 ease-in-out text-on-surface-variant dark:text-surface-variant" href="#">
+<a class="flex items-center gap-3 py-3 px-4 rounded-lg hover:bg-surface-container-low transition-colors text-on-surface-variant" href="index.html">
 <span class="material-symbols-outlined">dashboard</span>
 <span class="font-body-md">Dashboard</span>
 </a>
-<!-- Active Navigation: Environmental -->
 <div>
-<a class="flex items-center gap-3 py-3 px-4 rounded-lg transition-colors duration-200 ease-in-out text-secondary dark:text-secondary-fixed-dim font-bold border-r-4 border-secondary bg-surface-container-low" href="#">
-<span class="material-symbols-outlined">eco</span>
+<a class="flex items-center gap-3 py-3 px-4 rounded-lg transition-colors font-bold border-r-4 border-secondary bg-surface-container-low text-secondary" href="Enviornment.html">
+<span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1">eco</span>
 <span class="font-body-md">Environmental</span>
 </a>
-<!-- Sub-pages Expansion -->
-<div class="ml-10 mt-1 flex flex-col gap-1 border-l border-outline-variant pl-4">
-<a class="py-2 text-label-md text-on-surface-variant hover:text-secondary transition-colors" href="#">Emission Factors</a>
-<a class="py-2 text-label-md text-on-surface-variant hover:text-secondary transition-colors" href="#">Product ESG Profiles</a>
-<a class="py-2 text-label-md text-on-surface-variant hover:text-secondary transition-colors" href="#">Carbon Transactions</a>
-<a class="py-2 text-label-md text-secondary font-semibold" href="#">Environmental Goals</a>
 </div>
-</div>
-<a class="flex items-center gap-3 py-3 px-4 rounded-lg hover:bg-surface-container-low transition-colors duration-200 ease-in-out text-on-surface-variant" href="#">
-<span class="material-symbols-outlined">group</span>
+<a class="flex items-center gap-3 py-3 px-4 rounded-lg hover:bg-surface-container-low transition-colors text-on-surface-variant" href="social.html">
+<span class="material-symbols-outlined text-blue-600">group</span>
 <span class="font-body-md">Social</span>
 </a>
-<a class="flex items-center gap-3 py-3 px-4 rounded-lg hover:bg-surface-container-low transition-colors duration-200 ease-in-out text-on-surface-variant" href="#">
-<span class="material-symbols-outlined">gavel</span>
+<a class="flex items-center gap-3 py-3 px-4 rounded-lg hover:bg-surface-container-low transition-colors text-on-surface-variant" href="governance.html">
+<span class="material-symbols-outlined text-purple-600">gavel</span>
 <span class="font-body-md">Governance</span>
 </a>
-<a class="flex items-center gap-3 py-3 px-4 rounded-lg hover:bg-surface-container-low transition-colors duration-200 ease-in-out text-on-surface-variant" href="#">
-<span class="material-symbols-outlined">military_tech</span>
+<a class="flex items-center gap-3 py-3 px-4 rounded-lg hover:bg-surface-container-low transition-colors text-on-surface-variant" href="gamification.html">
+<span class="material-symbols-outlined text-orange-500">military_tech</span>
 <span class="font-body-md">Gamification</span>
 </a>
-<a class="flex items-center gap-3 py-3 px-4 rounded-lg hover:bg-surface-container-low transition-colors duration-200 ease-in-out text-on-surface-variant" href="#">
+<a class="flex items-center gap-3 py-3 px-4 rounded-lg hover:bg-surface-container-low transition-colors text-on-surface-variant" href="report.html">
 <span class="material-symbols-outlined">assessment</span>
 <span class="font-body-md">Reports</span>
 </a>
-<a class="flex items-center gap-3 py-3 px-4 rounded-lg hover:bg-surface-container-low transition-colors duration-200 ease-in-out text-on-surface-variant mt-auto" href="#">
+<a class="flex items-center gap-3 py-3 px-4 rounded-lg hover:bg-surface-container-low transition-colors text-on-surface-variant mt-auto" href="setting.html">
 <span class="material-symbols-outlined">settings</span>
 <span class="font-body-md">Settings</span>
 </a>
@@ -429,37 +421,28 @@
 
 </div>
 </main>
-<!-- Mobile Nav Suppressed as per instructions for Desktop focused view, but layout is responsive -->
-<div class="md:hidden fixed bottom-0 left-0 w-full bg-surface border-t border-outline-variant px-6 py-3 flex justify-around items-center z-[60] shadow-2xl">
-<span class="material-symbols-outlined text-on-surface-variant">dashboard</span>
-<span class="material-symbols-outlined text-secondary" style="font-variation-settings: 'FILL' 1;">eco</span>
-<div class="w-12 h-12 bg-primary rounded-full flex items-center justify-center -mt-8 border-4 border-white shadow-lg text-white">
-<span class="material-symbols-outlined">add</span>
-</div>
-<span class="material-symbols-outlined text-on-surface-variant">assessment</span>
-<span class="material-symbols-outlined text-on-surface-variant">settings</span>
-</div>
+<!-- Mobile Bottom Nav -->
+<nav class="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-slate-200 flex items-center justify-around px-2 z-50 shadow-lg">
+  <a href="index.html" class="flex flex-col items-center gap-0.5 text-gray-400"><span class="material-symbols-outlined text-xl">dashboard</span><span class="text-[9px]">Home</span></a>
+  <a href="Enviornment.html" class="flex flex-col items-center gap-0.5 text-secondary"><span class="material-symbols-outlined text-xl" style="font-variation-settings:'FILL' 1">eco</span><span class="text-[9px] font-bold">Enviro</span></a>
+  <button onclick="window.openOCRModal && window.openOCRModal()" class="flex flex-col items-center gap-0.5">
+    <div class="w-12 h-12 bg-secondary rounded-full flex items-center justify-center -mt-6 border-4 border-white shadow-lg text-white">
+      <span class="material-symbols-outlined">document_scanner</span>
+    </div>
+    <span class="text-[9px] text-gray-500 mt-1">OCR</span>
+  </button>
+  <a href="gamification.html" class="flex flex-col items-center gap-0.5 text-gray-400"><span class="material-symbols-outlined text-xl">military_tech</span><span class="text-[9px]">Games</span></a>
+  <a href="report.html" class="flex flex-col items-center gap-0.5 text-gray-400"><span class="material-symbols-outlined text-xl">assessment</span><span class="text-[9px]">Reports</span></a>
+</nav>
 <script>
-        // Simple micro-interaction for progress bars
-        document.querySelectorAll('.bg-secondary, .bg-error, .bg-primary, .bg-secondary-fixed-dim').forEach(bar => {
-            const width = bar.style.width;
-            bar.style.width = '0';
-            setTimeout(() => {
-                bar.style.transition = 'width 1s cubic-bezier(0.4, 0, 0.2, 1)';
-                bar.style.width = width;
-            }, 300);
-        });
-
-        // Search highlight effect
-        const searchInputs = document.querySelectorAll('input[type="text"]');
-        searchInputs.forEach(input => {
-            input.addEventListener('focus', () => {
-                input.parentElement.classList.add('scale-[1.02]');
-                input.parentElement.style.transition = 'transform 0.2s ease';
-            });
-            input.addEventListener('blur', () => {
-                input.parentElement.classList.remove('scale-[1.02]');
-            });
-        });
-    </script>
+  document.querySelectorAll('.bg-secondary, .bg-error, .bg-primary, .bg-secondary-fixed-dim').forEach(bar => {
+    const w = bar.style.width; bar.style.width = '0';
+    setTimeout(() => { bar.style.transition = 'width 1s cubic-bezier(0.4,0,0.2,1)'; bar.style.width = w; }, 300);
+  });
+  // Make top nav links work
+  document.querySelectorAll('nav a[href="#"]').forEach(a => { /* keep disabled */ });
+</script>
+<script src="js/app.js"></script>
+<script src="js/chatbot.js"></script>
+<script src="js/ocr.js"></script>
 </body></html>

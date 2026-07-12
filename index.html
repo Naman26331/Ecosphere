@@ -1,10 +1,12 @@
-<!DOCTYPE html><html class="light" lang="en"><head>
+<!DOCTYPE html>
+<html class="light" lang="en">
+<head>
 <meta charset="utf-8">
 <meta content="width=device-width, initial-scale=1.0" name="viewport">
 <title>EcoSphere | ESG Management Dashboard</title>
+<meta name="description" content="EcoSphere Auto-Pilot — AI-driven ESG operations platform for automated carbon tracking, gamified sustainability, and predictive governance.">
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
 <script id="tailwind-config">
       tailwind.config = {
         darkMode: "class",
@@ -59,32 +61,9 @@
                     "tertiary-container": "#3b4741",
                     "primary-fixed-dim": "#95d3ba"
             },
-            "borderRadius": {
-                    "DEFAULT": "0.25rem",
-                    "lg": "0.5rem",
-                    "xl": "0.75rem",
-                    "full": "9999px"
-            },
-            "spacing": {
-                    "margin-mobile": "16px",
-                    "stack-md": "16px",
-                    "gutter": "24px",
-                    "margin-desktop": "32px",
-                    "stack-lg": "24px",
-                    "container-max": "1440px",
-                    "stack-sm": "8px"
-            },
-            "fontFamily": {
-                    "display-lg": ["Inter"],
-                    "label-md": ["Inter"],
-                    "headline-lg": ["Inter"],
-                    "title-lg": ["Inter"],
-                    "body-lg": ["Inter"],
-                    "body-md": ["Inter"],
-                    "label-sm": ["Inter"],
-                    "headline-md": ["Inter"],
-                    "headline-lg-mobile": ["Inter"]
-            },
+            "borderRadius": { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" },
+            "spacing": { "margin-mobile": "16px", "stack-md": "16px", "gutter": "24px", "margin-desktop": "32px", "stack-lg": "24px", "container-max": "1440px", "stack-sm": "8px" },
+            "fontFamily": { "display-lg": ["Inter"], "label-md": ["Inter"], "headline-lg": ["Inter"], "title-lg": ["Inter"], "body-lg": ["Inter"], "body-md": ["Inter"], "label-sm": ["Inter"], "headline-md": ["Inter"], "headline-lg-mobile": ["Inter"] },
             "fontSize": {
                     "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
                     "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.01em", "fontWeight": "500"}],
@@ -101,416 +80,436 @@
       }
     </script>
 <style>
-        .material-symbols-outlined {
-            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
-        }
-        .glass-card {
-            background: rgba(255, 255, 255, 0.8);
-            backdrop-filter: blur(8px);
-            border: 1px solid rgba(229, 238, 255, 0.5);
-        }
-        .gauge-ring {
-            stroke-dasharray: 283;
-            stroke-dashoffset: 51;
-            transition: stroke-dashoffset 1s ease-out;
-        }
-        ::-webkit-scrollbar {
-            width: 8px;
-        }
-        ::-webkit-scrollbar-track {
-            background: transparent;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
-            border-radius: 10px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #94a3b8;
-        }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .glass-card { background: rgba(255,255,255,0.8); backdrop-filter: blur(8px); border: 1px solid rgba(229,238,255,0.5); }
+        .gauge-ring { stroke-dasharray: 565; stroke-dashoffset: 102; transition: stroke-dashoffset 1.5s ease-out; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        @keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:.4} }
+        .live-dot { animation: pulse-dot 2s infinite; }
+        .nav-link-active { font-weight: 700; border-right: 4px solid #006c49; background: #eff4ff; color: #006c49; }
     </style>
 </head>
 <body class="bg-background text-on-surface font-body-md overflow-hidden">
-<!-- Side Navigation Bar -->
-<nav class="fixed left-0 top-0 h-full w-[280px] bg-surface border-r border-outline-variant shadow-sm flex flex-col py-stack-lg px-stack-md z-50 overflow-y-auto hidden lg:flex">
-<div class="flex items-center gap-3 mb-8 px-2">
-<div class="w-10 h-10 bg-primary-container rounded-lg flex items-center justify-center">
-<span class="material-symbols-outlined text-on-primary-container" style="font-variation-settings: 'FILL' 1;">eco</span>
-</div>
-<div>
-<h1 class="font-headline-md text-headline-md font-bold text-primary leading-tight">EcoSphere</h1>
-<p class="text-xs text-on-surface-variant uppercase tracking-wider font-semibold">ESG Management</p>
-</div>
-</div>
-<div class="flex-1 space-y-4">
-<!-- Dashboard Section -->
-<div class="space-y-1">
-<a class="flex items-center gap-3 px-4 py-2 rounded-lg text-secondary font-bold border-r-4 border-secondary bg-surface-container-low" href="#">
-<span class="material-symbols-outlined">dashboard</span>
-<span class="font-body-md">Dashboard</span>
-</a>
-<div class="pl-12 space-y-1">
-<a class="block py-1.5 text-sm text-on-surface hover:text-secondary" href="#">Overview</a>
-<a class="block py-1.5 text-sm text-on-surface-variant hover:text-secondary" href="#">Departmental Metrics</a>
-<a class="block py-1.5 text-sm text-on-surface-variant hover:text-secondary" href="#">Audit Logs</a>
-</div>
-</div>
-<!-- Environmental Section -->
-<div class="space-y-1">
-<a class="flex items-center gap-3 px-4 py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-low group" href="#">
-<span class="material-symbols-outlined text-green-600">eco</span>
-<span class="font-body-md">Environmental</span>
-</a>
-<div class="pl-12 space-y-1">
-<a class="block py-1.5 text-sm text-on-surface-variant hover:text-green-600" href="#">Carbon Footprint</a>
-<a class="block py-1.5 text-sm text-on-surface-variant hover:text-green-600" href="#">Energy Management</a>
-<a class="block py-1.5 text-sm text-on-surface-variant hover:text-green-600" href="#">Waste Reduction</a>
-</div>
-</div>
-<!-- Social Section -->
-<div class="space-y-1">
-<a class="flex items-center gap-3 px-4 py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-low group" href="#">
-<span class="material-symbols-outlined text-blue-600">group</span>
-<span class="font-body-md">Social</span>
-</a>
-<div class="pl-12 space-y-1">
-<a class="block py-1.5 text-sm text-on-surface-variant hover:text-blue-600" href="#">Diversity &amp; Inclusion</a>
-<a class="block py-1.5 text-sm text-on-surface-variant hover:text-blue-600" href="#">Labor Practices</a>
-<a class="block py-1.5 text-sm text-on-surface-variant hover:text-blue-600" href="#">Community Impact</a>
-</div>
-</div>
-<!-- Governance Section -->
-<div class="space-y-1">
-<a class="flex items-center gap-3 px-4 py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-low group" href="#">
-<span class="material-symbols-outlined text-purple-600">gavel</span>
-<span class="font-body-md">Governance</span>
-</a>
-<div class="pl-12 space-y-1">
-<a class="block py-1.5 text-sm text-on-surface-variant hover:text-purple-600" href="#">Ethics &amp; Compliance</a>
-<a class="block py-1.5 text-sm text-on-surface-variant hover:text-purple-600" href="#">Risk Management</a>
-<a class="block py-1.5 text-sm text-on-surface-variant hover:text-purple-600" href="#">Board Oversight</a>
-</div>
-</div>
-<!-- Gamification Section -->
-<div class="space-y-1">
-<a class="flex items-center gap-3 px-4 py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-low group" href="#">
-<span class="material-symbols-outlined text-orange-500">military_tech</span>
-<span class="font-body-md">Gamification</span>
-</a>
-<div class="pl-12 space-y-1">
-<a class="block py-1.5 text-sm text-on-surface-variant hover:text-orange-600" href="#">Leaderboards</a>
-<a class="block py-1.5 text-sm text-on-surface-variant hover:text-orange-600" href="#">Challenges</a>
-<a class="block py-1.5 text-sm text-on-surface-variant hover:text-orange-600" href="#">Badges</a>
-</div>
-</div>
-<!-- Reports Section -->
-<div class="space-y-1">
-<a class="flex items-center gap-3 px-4 py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-low group" href="#">
-<span class="material-symbols-outlined">assessment</span>
-<span class="font-body-md">Reports</span>
-</a>
-<div class="pl-12 space-y-1">
-<a class="block py-1.5 text-sm text-on-surface-variant hover:text-secondary" href="#">Custom Reports</a>
-<a class="block py-1.5 text-sm text-on-surface-variant hover:text-secondary" href="#">Standard Frameworks</a>
-</div>
-</div>
-</div>
-<div class="pt-6 border-t border-outline-variant space-y-1">
-<a class="flex items-center gap-3 px-4 py-2 rounded-lg text-on-surface-variant hover:bg-surface-container-low group" href="#">
-<span class="material-symbols-outlined">settings</span>
-<span class="font-body-md">Settings</span>
-</a>
-<div class="pl-12 space-y-1">
-<a class="block py-1.5 text-sm text-on-surface-variant hover:text-secondary" href="#">User Permissions</a>
-<a class="block py-1.5 text-sm text-on-surface-variant hover:text-secondary" href="#">Integrations</a>
-</div>
-</div>
-</nav>
-<!-- Top Navigation Bar -->
-<header class="fixed top-0 right-0 lg:w-[calc(100%-280px)] w-full h-16 bg-surface border-b border-outline-variant flex items-center justify-between px-margin-desktop z-40">
-<div class="flex items-center bg-surface-container-low border border-outline-variant rounded-full px-4 py-1.5 w-64 md:w-96">
-<span class="material-symbols-outlined text-on-surface-variant text-xl">search</span>
-<input class="bg-transparent border-none focus:ring-0 text-sm w-full placeholder-on-surface-variant" placeholder="Search metrics, reports..." type="text">
-</div>
-<div class="flex items-center gap-4 lg:gap-6">
-<button class="relative p-2 text-on-surface-variant hover:bg-surface-container-highest rounded-full transition-all active:scale-90">
-<span class="material-symbols-outlined">notifications</span>
-<span class="absolute top-1 right-1 w-2 h-2 bg-error rounded-full"></span>
-</button>
-<div class="flex items-center gap-3 pl-4 border-l border-outline-variant">
-<div class="text-right hidden sm:block">
-<p class="font-label-md text-on-surface">Alex Rivera</p>
-<p class="text-[10px] text-on-surface-variant font-bold uppercase">Sustainability Officer</p>
-</div>
-<img class="w-10 h-10 rounded-full border-2 border-primary-container object-cover" data-alt="Professional headshot of Alex Rivera" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCeLt8Al8RyB45qLSZ8mtKnAs--CcOS3oFwJCYpNbRv8O6aRW0Gxme7XmM1JCGzDiat9NW1hhKwySPFN4NX23JtlMMNjabb6bSegarJgfTJ21xIvp6b4yQsE4dxZA2U2T1RtEJV2V2ehaQczGFHPpPdIeUZXJhgNUpGfMRMSG_tCFD0IuyOv3QCXr-FKarF2G1mZ2y_pyUZxHbeDy-ST8UTD9M5fEDsvnkhjVfFnjUg_gRFXo2IgSa60ohA0bSz-IHcP97hNvjjKH8">
-</div>
-</div>
-</header>
-<!-- Top Tab Bar -->
-<div class="fixed top-16 right-0 lg:w-[calc(100%-280px)] w-full h-12 bg-surface-container-lowest border-b border-outline-variant z-30 flex items-center px-margin-desktop overflow-x-auto no-scrollbar">
-<div class="flex items-center gap-8 h-full">
-<a class="h-full flex items-center px-1 border-b-2 border-secondary text-secondary font-bold text-sm" href="#">Dashboard</a>
-<a class="h-full flex items-center px-1 border-b-2 border-transparent text-on-surface-variant hover:text-green-600 transition-colors text-sm" href="#">Environmental</a>
-<a class="h-full flex items-center px-1 border-b-2 border-transparent text-on-surface-variant hover:text-blue-600 transition-colors text-sm" href="#">Social</a>
-<a class="h-full flex items-center px-1 border-b-2 border-transparent text-on-surface-variant hover:text-purple-600 transition-colors text-sm" href="#">Governance</a>
-<a class="h-full flex items-center px-1 border-b-2 border-transparent text-on-surface-variant hover:text-orange-500 transition-colors text-sm" href="#">Gamification</a>
-<a class="h-full flex items-center px-1 border-b-2 border-transparent text-on-surface-variant hover:text-secondary transition-colors text-sm" href="#">Reports</a>
-<a class="h-full flex items-center px-1 border-b-2 border-transparent text-on-surface-variant hover:text-secondary transition-colors text-sm" href="#">Settings</a>
-</div>
-</div>
-<!-- Main Content Canvas -->
-<main class="lg:ml-[280px] mt-28 p-stack-lg h-[calc(100vh-112px)] overflow-y-auto">
-<div class="max-w-container-max mx-auto space-y-8">
-<!-- Page Header -->
-<div class="flex flex-col md:flex-row md:justify-between md:items-end gap-4">
-<div>
-<h2 class="font-headline-lg text-headline-lg text-on-surface tracking-tight">Main Dashboard</h2>
-<p class="font-body-lg text-on-surface-variant">Welcome back. Your sustainability metrics are trending upward this quarter.</p>
-</div>
-<div class="flex gap-3">
-<button class="flex items-center gap-2 px-5 py-2.5 bg-surface border border-outline-variant text-on-surface rounded-xl font-label-md hover:bg-surface-container-low transition-colors">
-<span class="material-symbols-outlined text-lg">calendar_today</span>
-                        Last 30 Days
-                    </button>
-<button class="flex items-center gap-2 px-5 py-2.5 bg-secondary text-white rounded-xl font-label-md hover:shadow-lg transition-all active:scale-95 shadow-md">
-<span class="material-symbols-outlined text-lg">file_download</span>
-                        Export Report
-                    </button>
-</div>
-</div>
-<!-- Bento Grid - Key Metrics -->
-<div class="grid grid-cols-12 gap-gutter">
-<!-- Hero Score Card -->
-<div class="col-span-12 lg:col-span-4 bg-white p-8 rounded-3xl shadow-sm border border-slate-200 flex flex-col items-center justify-center text-center">
-<h3 class="font-title-lg text-title-lg text-on-surface mb-6">Overall ESG Score</h3>
-<div class="relative w-48 h-48 mb-6 flex items-center justify-center">
-<svg class="w-full h-full transform -rotate-90">
-<circle class="text-surface-container" cx="96" cy="96" fill="transparent" r="90" stroke="currentColor" stroke-width="12"></circle>
-<circle class="text-secondary gauge-ring" cx="96" cy="96" fill="transparent" r="90" stroke="currentColor" stroke-linecap="round" stroke-width="12"></circle>
-</svg>
-<div class="absolute inset-0 flex flex-col items-center justify-center">
-<span class="font-display-lg text-display-lg text-on-surface">82</span>
-<span class="font-label-md text-on-surface-variant mt-[-8px]">Out of 100</span>
-</div>
-</div>
-<div class="flex items-center gap-2 text-secondary font-bold">
-<span class="material-symbols-outlined text-lg">trending_up</span>
-<span>+4.2% since last month</span>
-</div>
-</div>
-<!-- Three Sub-Score Cards -->
-<div class="col-span-12 lg:col-span-8 grid grid-cols-1 md:grid-cols-3 gap-gutter">
-<!-- Environmental (Green) -->
-<div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 hover:border-green-600 transition-all group">
-<div class="w-12 h-12 bg-green-50 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-green-600 transition-colors">
-<span class="material-symbols-outlined text-green-600 group-hover:text-white" style="font-variation-settings: 'FILL' 1;">eco</span>
-</div>
-<p class="font-label-md text-on-surface-variant uppercase tracking-wider">Environmental</p>
-<div class="flex items-baseline gap-2 mt-2">
-<span class="font-headline-lg text-headline-lg text-on-surface">78</span>
-<span class="font-label-md text-green-600 flex items-center"><span class="material-symbols-outlined text-sm">arrow_upward</span> 2%</span>
-</div>
-<div class="mt-6 w-full bg-surface-container rounded-full h-2">
-<div class="bg-green-600 h-2 rounded-full w-[78%]"></div>
-</div>
-</div>
-<!-- Social (Blue) -->
-<div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 hover:border-blue-600 transition-all group">
-<div class="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-blue-600 transition-colors">
-<span class="material-symbols-outlined text-blue-600 group-hover:text-white" style="font-variation-settings: 'FILL' 1;">group</span>
-</div>
-<p class="font-label-md text-on-surface-variant uppercase tracking-wider">Social</p>
-<div class="flex items-baseline gap-2 mt-2">
-<span class="font-headline-lg text-headline-lg text-on-surface">85</span>
-<span class="font-label-md text-blue-600 flex items-center"><span class="material-symbols-outlined text-sm">arrow_upward</span> 5%</span>
-</div>
-<div class="mt-6 w-full bg-surface-container rounded-full h-2">
-<div class="bg-blue-600 h-2 rounded-full w-[85%]"></div>
-</div>
-</div>
-<!-- Governance (Purple) -->
-<div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 hover:border-purple-600 transition-all group">
-<div class="w-12 h-12 bg-purple-50 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-purple-600 transition-colors">
-<span class="material-symbols-outlined text-purple-600 group-hover:text-white" style="font-variation-settings: 'FILL' 1;">gavel</span>
-</div>
-<p class="font-label-md text-on-surface-variant uppercase tracking-wider">Governance</p>
-<div class="flex items-baseline gap-2 mt-2">
-<span class="font-headline-lg text-headline-lg text-on-surface">83</span>
-<span class="font-label-md text-purple-600 flex items-center"><span class="material-symbols-outlined text-sm">arrow_upward</span> 3%</span>
-</div>
-<div class="mt-6 w-full bg-surface-container rounded-full h-2">
-<div class="bg-purple-600 h-2 rounded-full w-[83%]"></div>
-</div>
-</div>
-<!-- Carbon Emissions Trend Chart -->
-<div class="col-span-3 bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
-<div class="flex items-center justify-between mb-8">
-<div>
-<h3 class="font-title-lg text-title-lg text-on-surface">Carbon Emissions Trend</h3>
-<p class="text-sm text-on-surface-variant">Measured in tCO2e per month</p>
-</div>
-<select class="bg-surface-container-low border-none rounded-lg text-sm font-label-md focus:ring-secondary cursor-pointer">
-<option>This Year</option>
-<option>2023</option>
-</select>
-</div>
-<div class="h-64 flex items-end justify-between px-2 gap-4">
-<svg class="w-full h-full" preserveAspectRatio="none" viewBox="0 0 800 200">
-<defs>
-<linearGradient id="chartGradient" x1="0%" x2="0%" y1="0%" y2="100%">
-<stop offset="0%" style="stop-color:#006c49;stop-opacity:0.2"></stop>
-<stop offset="100%" style="stop-color:#006c49;stop-opacity:0"></stop>
-</linearGradient>
-</defs>
-<path d="M0,180 Q100,160 160,120 T320,130 T480,90 T640,110 T800,40 L800,200 L0,200 Z" fill="url(#chartGradient)"></path>
-<path d="M0,180 Q100,160 160,120 T320,130 T480,90 T640,110 T800,40" fill="none" stroke="#006c49" stroke-linecap="round" stroke-width="4"></path>
-<circle cx="160" cy="120" fill="#006c49" r="6" stroke="white" stroke-width="2"></circle>
-<circle cx="320" cy="130" fill="#006c49" r="6" stroke="white" stroke-width="2"></circle>
-<circle cx="480" cy="90" fill="#006c49" r="6" stroke="white" stroke-width="2"></circle>
-<circle cx="640" cy="110" fill="#006c49" r="6" stroke="white" stroke-width="2"></circle>
-<circle cx="800" cy="40" fill="#006c49" r="6" stroke="white" stroke-width="2"></circle>
-</svg>
-</div>
-<div class="flex justify-between mt-4 text-xs font-label-md text-on-surface-variant uppercase tracking-tighter">
-<span>Jan</span><span>Feb</span><span>Mar</span><span>Apr</span><span>May</span><span>Jun</span>
-</div>
-</div>
-</div>
-</div>
-<!-- Department ESG Ranking Bar Chart -->
-<div class="grid grid-cols-12 gap-gutter">
-<div class="col-span-12 bg-white p-8 rounded-3xl shadow-sm border border-slate-200">
-<div class="flex items-center justify-between mb-8">
-<div>
-<h3 class="font-title-lg text-title-lg text-on-surface">Department ESG Ranking</h3>
-<p class="text-sm text-on-surface-variant">Performance across all sustainability benchmarks</p>
-</div>
-</div>
-<div class="grid grid-cols-1 md:grid-cols-5 gap-8">
-<div class="flex flex-col items-center">
-<div class="w-full flex-1 flex flex-col justify-end gap-2 h-48 bg-surface-container-low rounded-t-xl overflow-hidden px-4 py-2">
-<div class="bg-secondary w-full rounded-t-md transition-all duration-1000" style="height: 85%;"></div>
-</div>
-<p class="mt-4 font-bold text-sm text-on-surface">Sales</p>
-<p class="text-xs text-secondary font-bold">85%</p>
-</div>
-<div class="flex flex-col items-center">
-<div class="w-full flex-1 flex flex-col justify-end gap-2 h-48 bg-surface-container-low rounded-t-xl overflow-hidden px-4 py-2">
-<div class="bg-green-600 w-full rounded-t-md transition-all duration-1000" style="height: 92%;"></div>
-</div>
-<p class="mt-4 font-bold text-sm text-on-surface">Mfg</p>
-<p class="text-xs text-green-600 font-bold">92%</p>
-</div>
-<div class="flex flex-col items-center">
-<div class="w-full flex-1 flex flex-col justify-end gap-2 h-48 bg-surface-container-low rounded-t-xl overflow-hidden px-4 py-2">
-<div class="bg-blue-600 w-full rounded-t-md transition-all duration-1000" style="height: 78%;"></div>
-</div>
-<p class="mt-4 font-bold text-sm text-on-surface">Logi</p>
-<p class="text-xs text-blue-600 font-bold">78%</p>
-</div>
-<div class="flex flex-col items-center">
-<div class="w-full flex-1 flex flex-col justify-end gap-2 h-48 bg-surface-container-low rounded-t-xl overflow-hidden px-4 py-2">
-<div class="bg-purple-600 w-full rounded-t-md transition-all duration-1000" style="height: 88%;"></div>
-</div>
-<p class="mt-4 font-bold text-sm text-on-surface">Corp</p>
-<p class="text-xs text-purple-600 font-bold">88%</p>
-</div>
-<div class="flex flex-col items-center">
-<div class="w-full flex-1 flex flex-col justify-end gap-2 h-48 bg-surface-container-low rounded-t-xl overflow-hidden px-4 py-2">
-<div class="bg-orange-500 w-full rounded-t-md transition-all duration-1000" style="height: 74%;"></div>
-</div>
-<p class="mt-4 font-bold text-sm text-on-surface">R&amp;D</p>
-<p class="text-xs text-orange-500 font-bold">74%</p>
-</div>
-</div>
-</div>
-</div>
-<!-- Lower Row: Recent Activity and Quick Actions -->
-<div class="grid grid-cols-12 gap-gutter">
-<!-- Recent Activity Feed -->
-<div class="col-span-12 lg:col-span-8 bg-white p-8 rounded-3xl shadow-sm border border-slate-200">
-<div class="flex items-center justify-between mb-8">
-<h3 class="font-title-lg text-title-lg text-on-surface">Recent Activity</h3>
-<button class="text-sm text-secondary font-bold hover:underline">View All</button>
-</div>
-<div class="space-y-6">
-<div class="flex gap-4 items-start pb-6 border-b border-outline-variant/30">
-<div class="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center shrink-0">
-<span class="material-symbols-outlined text-orange-600 text-xl">military_tech</span>
-</div>
-<div>
-<p class="text-sm font-medium"><span class="font-bold text-on-surface">Priya Sharma</span> completed the <span class="text-secondary font-bold">'Zero Waste Week'</span> challenge.</p>
-<p class="text-xs text-on-surface-variant mt-1">Marketing Department • 12 mins ago</p>
-</div>
-</div>
-<div class="flex gap-4 items-start pb-6 border-b border-outline-variant/30">
-<div class="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center shrink-0">
-<span class="material-symbols-outlined text-green-600 text-xl">energy_savings_leaf</span>
-</div>
-<div>
-<p class="text-sm font-medium"><span class="font-bold text-on-surface">Operational Team</span> updated monthly <span class="text-secondary font-bold">Energy Usage Data</span>.</p>
-<p class="text-xs text-on-surface-variant mt-1">Operations • 2 hours ago</p>
-</div>
-</div>
-<div class="flex gap-4 items-start">
-<div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
-<span class="material-symbols-outlined text-blue-600 text-xl">diversity_3</span>
-</div>
-<div>
-<p class="text-sm font-medium"><span class="font-bold text-on-surface">HR Department</span> published the new <span class="text-secondary font-bold">Diversity Report Q2</span>.</p>
-<p class="text-xs text-on-surface-variant mt-1">Human Resources • 5 hours ago</p>
-</div>
-</div>
-</div>
-</div>
-<!-- Quick Actions Panel -->
-<div class="col-span-12 lg:col-span-4 bg-surface-container p-8 rounded-3xl shadow-sm border border-slate-200">
-<h3 class="font-title-lg text-title-lg text-on-surface mb-8">Quick Actions</h3>
-<div class="flex flex-col gap-4">
-<button class="w-full flex items-center justify-between p-4 bg-white hover:bg-secondary hover:text-white transition-all rounded-2xl border border-outline-variant/30 group shadow-sm">
-<div class="flex items-center gap-3">
-<span class="material-symbols-outlined text-green-600 group-hover:text-white">monitoring</span>
-<span class="font-bold">Log Carbon Data</span>
-</div>
-<span class="material-symbols-outlined text-sm">chevron_right</span>
-</button>
-<button class="w-full flex items-center justify-between p-4 bg-white hover:bg-orange-500 hover:text-white transition-all rounded-2xl border border-outline-variant/30 group shadow-sm">
-<div class="flex items-center gap-3">
-<span class="material-symbols-outlined text-orange-500 group-hover:text-white">rocket_launch</span>
-<span class="font-bold">Start Challenge</span>
-</div>
-<span class="material-symbols-outlined text-sm">chevron_right</span>
-</button>
-<button class="w-full flex items-center justify-between p-4 bg-white hover:bg-blue-600 hover:text-white transition-all rounded-2xl border border-outline-variant/30 group shadow-sm">
-<div class="flex items-center gap-3">
-<span class="material-symbols-outlined text-blue-600 group-hover:text-white">description</span>
-<span class="font-bold">View Reports</span>
-</div>
-<span class="material-symbols-outlined text-sm">chevron_right</span>
-</button>
-</div>
-<div class="mt-10 p-4 bg-white/50 rounded-2xl border border-dashed border-outline">
-<p class="text-xs font-bold text-on-surface-variant uppercase mb-2">Shortcuts</p>
-<div class="flex flex-wrap gap-2">
-<span class="px-3 py-1 bg-surface-container-highest rounded-full text-[11px] font-bold">Audit</span>
-<span class="px-3 py-1 bg-surface-container-highest rounded-full text-[11px] font-bold">Scope 3</span>
-<span class="px-3 py-1 bg-surface-container-highest rounded-full text-[11px] font-bold">GRI Standards</span>
-</div>
-</div>
-</div>
-</div>
-</div>
-<!-- Bottom Margin for scrollability -->
-<div class="h-10"></div>
-</main>
-<script>
-        document.addEventListener('DOMContentLoaded', () => {
-            // Animate gauge ring on load
-            const ring = document.querySelector('.gauge-ring');
-            if (ring) {
-                ring.style.strokeDashoffset = '51'; 
-            }
 
-            // Mobile menu toggle logic could go here if needed
-        });
-    </script>
-</body></html>
+<!-- ── Side Navigation Bar ─────────────────────────────────────── -->
+<nav class="fixed left-0 top-0 h-full w-[280px] bg-surface border-r border-outline-variant shadow-sm flex flex-col py-stack-lg px-stack-md z-50 overflow-y-auto hidden lg:flex">
+  <div class="flex items-center gap-3 mb-8 px-2">
+    <div class="w-10 h-10 bg-primary-container rounded-lg flex items-center justify-center">
+      <span class="material-symbols-outlined text-on-primary-container" style="font-variation-settings: 'FILL' 1;">eco</span>
+    </div>
+    <div>
+      <h1 class="font-headline-md text-headline-md font-bold text-primary leading-tight">EcoSphere</h1>
+      <p class="text-xs text-on-surface-variant uppercase tracking-wider font-semibold">ESG Management</p>
+    </div>
+  </div>
+  <div class="flex-1 space-y-1">
+    <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg nav-link-active" href="index.html">
+      <span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1">dashboard</span>
+      <span>Dashboard</span>
+    </a>
+    <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-colors" href="Enviornment.html">
+      <span class="material-symbols-outlined text-green-600">eco</span>
+      <span>Environmental</span>
+    </a>
+    <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-colors" href="social.html">
+      <span class="material-symbols-outlined text-blue-600">group</span>
+      <span>Social</span>
+    </a>
+    <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-colors" href="governance.html">
+      <span class="material-symbols-outlined text-purple-600">gavel</span>
+      <span>Governance</span>
+    </a>
+    <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-colors" href="gamification.html">
+      <span class="material-symbols-outlined text-orange-500">military_tech</span>
+      <span>Gamification</span>
+    </a>
+    <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-colors" href="report.html">
+      <span class="material-symbols-outlined">assessment</span>
+      <span>Reports</span>
+    </a>
+  </div>
+  <div class="pt-4 border-t border-outline-variant">
+    <a class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-on-surface-variant hover:bg-surface-container-low transition-colors" href="setting.html">
+      <span class="material-symbols-outlined">settings</span>
+      <span>Settings</span>
+    </a>
+    <!-- Live indicator -->
+    <div class="mt-4 mx-2 px-3 py-2 bg-green-50 rounded-xl border border-green-200 flex items-center gap-2">
+      <span class="w-2 h-2 rounded-full bg-green-500 live-dot"></span>
+      <span class="text-xs text-green-800 font-bold">Live ESG Tracking</span>
+    </div>
+  </div>
+</nav>
+
+<!-- ── Top Header ──────────────────────────────────────────────── -->
+<header class="fixed top-0 right-0 lg:w-[calc(100%-280px)] w-full h-16 bg-surface border-b border-outline-variant flex items-center justify-between px-4 lg:px-8 z-40">
+  <!-- Mobile hamburger -->
+  <button id="mobile-menu-btn" class="lg:hidden flex items-center justify-center w-10 h-10 rounded-full hover:bg-surface-container transition-all mr-2">
+    <span class="material-symbols-outlined">menu</span>
+  </button>
+  <div class="flex items-center bg-surface-container-low border border-outline-variant rounded-full px-4 py-1.5 flex-1 max-w-xs lg:max-w-sm">
+    <span class="material-symbols-outlined text-on-surface-variant text-xl">search</span>
+    <input class="bg-transparent border-none focus:ring-0 text-sm w-full placeholder-on-surface-variant ml-2" placeholder="Search metrics, reports..." type="text">
+  </div>
+  <div class="flex items-center gap-3 lg:gap-5 ml-3">
+    <button class="relative p-2 text-on-surface-variant hover:bg-surface-container-highest rounded-full transition-all active:scale-90" title="Notifications">
+      <span class="material-symbols-outlined">notifications</span>
+      <span class="absolute top-1 right-1 w-2 h-2 bg-error rounded-full"></span>
+    </button>
+    <div class="flex items-center gap-3 pl-3 border-l border-outline-variant">
+      <div class="text-right hidden sm:block">
+        <p class="font-label-md text-on-surface font-semibold">Alex Rivera</p>
+        <p class="text-[10px] text-on-surface-variant font-bold uppercase">Sustainability Officer</p>
+      </div>
+      <div class="w-10 h-10 rounded-full bg-green-800 flex items-center justify-center text-white font-bold text-sm border-2 border-primary-container">AR</div>
+    </div>
+  </div>
+</header>
+
+<!-- ── Tab Bar ─────────────────────────────────────────────────── -->
+<div class="fixed top-16 right-0 lg:w-[calc(100%-280px)] w-full h-12 bg-surface-container-lowest border-b border-outline-variant z-30 flex items-center px-4 lg:px-8 overflow-x-auto no-scrollbar">
+  <div class="flex items-center gap-6 h-full whitespace-nowrap">
+    <a class="h-full flex items-center px-1 border-b-2 border-secondary text-secondary font-bold text-sm" href="index.html">Dashboard</a>
+    <a class="h-full flex items-center px-1 border-b-2 border-transparent text-on-surface-variant hover:text-green-600 text-sm transition-colors" href="Enviornment.html">Environmental</a>
+    <a class="h-full flex items-center px-1 border-b-2 border-transparent text-on-surface-variant hover:text-blue-600 text-sm transition-colors" href="social.html">Social</a>
+    <a class="h-full flex items-center px-1 border-b-2 border-transparent text-on-surface-variant hover:text-purple-600 text-sm transition-colors" href="governance.html">Governance</a>
+    <a class="h-full flex items-center px-1 border-b-2 border-transparent text-on-surface-variant hover:text-orange-500 text-sm transition-colors" href="gamification.html">Gamification</a>
+    <a class="h-full flex items-center px-1 border-b-2 border-transparent text-on-surface-variant hover:text-secondary text-sm transition-colors" href="report.html">Reports</a>
+    <a class="h-full flex items-center px-1 border-b-2 border-transparent text-on-surface-variant hover:text-secondary text-sm transition-colors" href="setting.html">Settings</a>
+  </div>
+</div>
+
+<!-- ── Main Content ────────────────────────────────────────────── -->
+<main class="lg:ml-[280px] mt-28 p-4 lg:p-6 h-[calc(100vh-112px)] overflow-y-auto">
+<div class="max-w-container-max mx-auto space-y-6 lg:space-y-8">
+
+  <!-- Page Header -->
+  <div class="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4">
+    <div>
+      <h2 class="font-headline-lg text-headline-lg-mobile lg:text-headline-lg text-on-surface tracking-tight">Main Dashboard</h2>
+      <p class="text-sm text-on-surface-variant mt-1">Welcome back, Alex. Your sustainability metrics are trending upward this quarter.</p>
+    </div>
+    <div class="flex gap-2 flex-wrap">
+      <button class="flex items-center gap-2 px-4 py-2 bg-surface border border-outline-variant text-on-surface rounded-xl text-sm font-medium hover:bg-surface-container-low transition-colors">
+        <span class="material-symbols-outlined text-lg">calendar_today</span>Last 30 Days
+      </button>
+      <button onclick="window.location.href='report.html'" class="flex items-center gap-2 px-4 py-2 bg-secondary text-white rounded-xl text-sm font-bold hover:shadow-lg transition-all active:scale-95 shadow-md">
+        <span class="material-symbols-outlined text-lg">file_download</span>Export Report
+      </button>
+    </div>
+  </div>
+
+  <!-- Bento Grid – Key Metrics -->
+  <div class="grid grid-cols-12 gap-4 lg:gap-6">
+
+    <!-- Hero Score Card -->
+    <div class="col-span-12 lg:col-span-4 bg-white p-6 lg:p-8 rounded-3xl shadow-sm border border-slate-200 flex flex-col items-center justify-center text-center">
+      <div class="flex items-center gap-2 mb-2">
+        <h3 class="font-title-lg text-title-lg text-on-surface">Overall ESG Score</h3>
+        <span class="w-2 h-2 rounded-full bg-green-500 live-dot" title="Live"></span>
+      </div>
+      <div class="relative w-44 h-44 mb-4 flex items-center justify-center">
+        <svg class="w-full h-full transform -rotate-90" viewBox="0 0 200 200">
+          <circle class="text-surface-container" cx="100" cy="100" fill="transparent" r="90" stroke="currentColor" stroke-width="14"></circle>
+          <circle class="text-secondary gauge-ring" cx="100" cy="100" fill="transparent" r="90" stroke="currentColor" stroke-linecap="round" stroke-width="14"></circle>
+        </svg>
+        <div class="absolute inset-0 flex flex-col items-center justify-center">
+          <span class="font-display-lg text-display-lg text-on-surface" data-live="overall">82</span>
+          <span class="text-xs text-on-surface-variant mt-[-6px]">Out of 100</span>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 text-secondary font-bold text-sm">
+        <span class="material-symbols-outlined text-lg">trending_up</span>
+        <span>+4.2% since last month</span>
+      </div>
+    </div>
+
+    <!-- Three Sub-Score Cards -->
+    <div class="col-span-12 lg:col-span-8 grid grid-cols-1 sm:grid-cols-3 gap-4 lg:gap-6">
+      <!-- Environmental -->
+      <a href="Enviornment.html" class="bg-white p-5 lg:p-6 rounded-3xl shadow-sm border border-slate-200 hover:border-green-600 transition-all group cursor-pointer block">
+        <div class="w-12 h-12 bg-green-50 rounded-2xl flex items-center justify-center mb-5 group-hover:bg-green-600 transition-colors">
+          <span class="material-symbols-outlined text-green-600 group-hover:text-white" style="font-variation-settings: 'FILL' 1;">eco</span>
+        </div>
+        <p class="text-xs text-on-surface-variant uppercase tracking-wider font-bold mb-2">Environmental</p>
+        <div class="flex items-baseline gap-2">
+          <span class="text-3xl font-bold text-on-surface" data-live="env">78</span>
+          <span class="text-xs text-green-600 flex items-center font-bold"><span class="material-symbols-outlined text-sm">arrow_upward</span> 2%</span>
+        </div>
+        <div class="mt-5 w-full bg-surface-container rounded-full h-2">
+          <div class="bg-green-600 h-2 rounded-full transition-all duration-1000" data-live-bar="env" style="width:78%"></div>
+        </div>
+      </a>
+      <!-- Social -->
+      <a href="social.html" class="bg-white p-5 lg:p-6 rounded-3xl shadow-sm border border-slate-200 hover:border-blue-600 transition-all group cursor-pointer block">
+        <div class="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center mb-5 group-hover:bg-blue-600 transition-colors">
+          <span class="material-symbols-outlined text-blue-600 group-hover:text-white" style="font-variation-settings: 'FILL' 1;">group</span>
+        </div>
+        <p class="text-xs text-on-surface-variant uppercase tracking-wider font-bold mb-2">Social</p>
+        <div class="flex items-baseline gap-2">
+          <span class="text-3xl font-bold text-on-surface" data-live="social">85</span>
+          <span class="text-xs text-blue-600 flex items-center font-bold"><span class="material-symbols-outlined text-sm">arrow_upward</span> 5%</span>
+        </div>
+        <div class="mt-5 w-full bg-surface-container rounded-full h-2">
+          <div class="bg-blue-600 h-2 rounded-full transition-all duration-1000" data-live-bar="social" style="width:85%"></div>
+        </div>
+      </a>
+      <!-- Governance -->
+      <a href="governance.html" class="bg-white p-5 lg:p-6 rounded-3xl shadow-sm border border-slate-200 hover:border-purple-600 transition-all group cursor-pointer block">
+        <div class="w-12 h-12 bg-purple-50 rounded-2xl flex items-center justify-center mb-5 group-hover:bg-purple-600 transition-colors">
+          <span class="material-symbols-outlined text-purple-600 group-hover:text-white" style="font-variation-settings: 'FILL' 1;">gavel</span>
+        </div>
+        <p class="text-xs text-on-surface-variant uppercase tracking-wider font-bold mb-2">Governance</p>
+        <div class="flex items-baseline gap-2">
+          <span class="text-3xl font-bold text-on-surface" data-live="gov">83</span>
+          <span class="text-xs text-purple-600 flex items-center font-bold"><span class="material-symbols-outlined text-sm">arrow_upward</span> 3%</span>
+        </div>
+        <div class="mt-5 w-full bg-surface-container rounded-full h-2">
+          <div class="bg-purple-600 h-2 rounded-full transition-all duration-1000" data-live-bar="gov" style="width:83%"></div>
+        </div>
+      </a>
+
+      <!-- Carbon Emissions Trend Chart -->
+      <div class="col-span-3 bg-white p-5 lg:p-6 rounded-3xl shadow-sm border border-slate-200">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h3 class="font-title-lg text-title-lg text-on-surface">Carbon Emissions Trend</h3>
+            <p class="text-xs text-on-surface-variant">tCO2e per month — AI tracked</p>
+          </div>
+          <select class="bg-surface-container-low border-none rounded-lg text-sm focus:ring-secondary cursor-pointer px-2 py-1">
+            <option>This Year</option><option>2025</option><option>2024</option>
+          </select>
+        </div>
+        <div class="h-52 flex items-end justify-between px-2 gap-4">
+          <svg class="w-full h-full" preserveAspectRatio="none" viewBox="0 0 800 200">
+            <defs>
+              <linearGradient id="chartGradient" x1="0%" x2="0%" y1="0%" y2="100%">
+                <stop offset="0%" style="stop-color:#006c49;stop-opacity:0.25"></stop>
+                <stop offset="100%" style="stop-color:#006c49;stop-opacity:0"></stop>
+              </linearGradient>
+            </defs>
+            <path d="M0,180 Q100,160 160,120 T320,130 T480,90 T640,110 T800,40 L800,200 L0,200 Z" fill="url(#chartGradient)"></path>
+            <path d="M0,180 Q100,160 160,120 T320,130 T480,90 T640,110 T800,40" fill="none" stroke="#006c49" stroke-linecap="round" stroke-width="3"></path>
+            <circle cx="160" cy="120" fill="#006c49" r="5" stroke="white" stroke-width="2"></circle>
+            <circle cx="320" cy="130" fill="#006c49" r="5" stroke="white" stroke-width="2"></circle>
+            <circle cx="480" cy="90" fill="#006c49" r="5" stroke="white" stroke-width="2"></circle>
+            <circle cx="640" cy="110" fill="#006c49" r="5" stroke="white" stroke-width="2"></circle>
+            <circle cx="800" cy="40" fill="#006c49" r="5" stroke="white" stroke-width="2"></circle>
+          </svg>
+        </div>
+        <div class="flex justify-between mt-3 text-xs text-on-surface-variant uppercase tracking-tighter">
+          <span>Jan</span><span>Feb</span><span>Mar</span><span>Apr</span><span>May</span><span>Jun</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Department ESG Ranking -->
+  <div class="bg-white p-5 lg:p-8 rounded-3xl shadow-sm border border-slate-200">
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <h3 class="font-title-lg text-title-lg text-on-surface">Department ESG Ranking</h3>
+        <p class="text-xs text-on-surface-variant">Live performance across all sustainability benchmarks</p>
+      </div>
+      <a href="report.html" class="text-sm text-secondary font-bold hover:underline">Full Report →</a>
+    </div>
+    <div class="grid grid-cols-2 sm:grid-cols-5 gap-4 lg:gap-8">
+      <div class="flex flex-col items-center">
+        <div class="w-full flex flex-col justify-end h-32 sm:h-48 bg-surface-container-low rounded-t-xl overflow-hidden px-2 py-1">
+          <div class="bg-secondary w-full rounded-t-md transition-all duration-1000" data-progress="85" style="height:85%"></div>
+        </div>
+        <p class="mt-2 font-bold text-sm text-on-surface">Sales</p>
+        <p class="text-xs text-secondary font-bold">85%</p>
+      </div>
+      <div class="flex flex-col items-center">
+        <div class="w-full flex flex-col justify-end h-32 sm:h-48 bg-surface-container-low rounded-t-xl overflow-hidden px-2 py-1">
+          <div class="bg-green-600 w-full rounded-t-md transition-all duration-1000" data-progress="92" style="height:92%"></div>
+        </div>
+        <p class="mt-2 font-bold text-sm text-on-surface">Mfg</p>
+        <p class="text-xs text-green-600 font-bold">92%</p>
+      </div>
+      <div class="flex flex-col items-center">
+        <div class="w-full flex flex-col justify-end h-32 sm:h-48 bg-surface-container-low rounded-t-xl overflow-hidden px-2 py-1">
+          <div class="bg-blue-600 w-full rounded-t-md transition-all duration-1000" data-progress="78" style="height:78%"></div>
+        </div>
+        <p class="mt-2 font-bold text-sm text-on-surface">Logi</p>
+        <p class="text-xs text-blue-600 font-bold">78%</p>
+      </div>
+      <div class="flex flex-col items-center">
+        <div class="w-full flex flex-col justify-end h-32 sm:h-48 bg-surface-container-low rounded-t-xl overflow-hidden px-2 py-1">
+          <div class="bg-purple-600 w-full rounded-t-md transition-all duration-1000" data-progress="88" style="height:88%"></div>
+        </div>
+        <p class="mt-2 font-bold text-sm text-on-surface">Corp</p>
+        <p class="text-xs text-purple-600 font-bold">88%</p>
+      </div>
+      <div class="flex flex-col items-center">
+        <div class="w-full flex flex-col justify-end h-32 sm:h-48 bg-surface-container-low rounded-t-xl overflow-hidden px-2 py-1">
+          <div class="bg-orange-500 w-full rounded-t-md transition-all duration-1000" data-progress="74" style="height:74%"></div>
+        </div>
+        <p class="mt-2 font-bold text-sm text-on-surface">R&D</p>
+        <p class="text-xs text-orange-500 font-bold">74%</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Lower Row -->
+  <div class="grid grid-cols-12 gap-4 lg:gap-6">
+    <!-- Recent Activity -->
+    <div class="col-span-12 lg:col-span-8 bg-white p-5 lg:p-8 rounded-3xl shadow-sm border border-slate-200">
+      <div class="flex items-center justify-between mb-6">
+        <h3 class="font-title-lg text-title-lg text-on-surface">Recent Activity</h3>
+        <button class="text-sm text-secondary font-bold hover:underline">View All</button>
+      </div>
+      <div class="space-y-5" id="activity-feed">
+        <div class="flex gap-4 items-start pb-5 border-b border-outline-variant/30">
+          <div class="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center shrink-0">
+            <span class="material-symbols-outlined text-orange-600 text-xl">military_tech</span>
+          </div>
+          <div class="flex-1">
+            <p class="text-sm font-medium"><span class="font-bold text-on-surface">Priya Sharma</span> completed <span class="text-secondary font-bold">'Zero Waste Week'</span> challenge. <span class="ml-2 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold">AI Verified ✓</span></p>
+            <p class="text-xs text-on-surface-variant mt-1">Marketing Department • 12 mins ago</p>
+          </div>
+        </div>
+        <div class="flex gap-4 items-start pb-5 border-b border-outline-variant/30">
+          <div class="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center shrink-0">
+            <span class="material-symbols-outlined text-green-600 text-xl">receipt_long</span>
+          </div>
+          <div class="flex-1">
+            <p class="text-sm font-medium"><span class="font-bold text-on-surface">AI OCR Engine</span> extracted <span class="text-secondary font-bold">Electricity Bill — 2,840 kWh → 0.661 tCO2e</span></p>
+            <p class="text-xs text-on-surface-variant mt-1">Operations • Auto-logged 2 hours ago</p>
+          </div>
+        </div>
+        <div class="flex gap-4 items-start">
+          <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+            <span class="material-symbols-outlined text-blue-600 text-xl">diversity_3</span>
+          </div>
+          <div class="flex-1">
+            <p class="text-sm font-medium"><span class="font-bold text-on-surface">HR Department</span> published <span class="text-secondary font-bold">Diversity Report Q2</span></p>
+            <p class="text-xs text-on-surface-variant mt-1">Human Resources • 5 hours ago</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="col-span-12 lg:col-span-4 bg-surface-container p-5 lg:p-8 rounded-3xl shadow-sm border border-slate-200">
+      <h3 class="font-title-lg text-title-lg text-on-surface mb-6">Quick Actions</h3>
+      <div class="flex flex-col gap-3">
+        <button onclick="window.openOCRModal && window.openOCRModal()" class="w-full flex items-center justify-between p-4 bg-white hover:bg-green-800 hover:text-white transition-all rounded-2xl border border-outline-variant/30 group shadow-sm">
+          <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined text-green-600 group-hover:text-white" style="font-variation-settings:'FILL' 1">document_scanner</span>
+            <span class="font-bold">Log Carbon Data</span>
+          </div>
+          <span class="material-symbols-outlined text-sm">chevron_right</span>
+        </button>
+        <button onclick="window.openCSRModal && window.openCSRModal()" class="w-full flex items-center justify-between p-4 bg-white hover:bg-orange-500 hover:text-white transition-all rounded-2xl border border-outline-variant/30 group shadow-sm">
+          <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined text-orange-500 group-hover:text-white" style="font-variation-settings:'FILL' 1">add_a_photo</span>
+            <span class="font-bold">Submit Challenge</span>
+          </div>
+          <span class="material-symbols-outlined text-sm">chevron_right</span>
+        </button>
+        <a href="report.html" class="w-full flex items-center justify-between p-4 bg-white hover:bg-blue-600 hover:text-white transition-all rounded-2xl border border-outline-variant/30 group shadow-sm">
+          <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined text-blue-600 group-hover:text-white">description</span>
+            <span class="font-bold">View Reports</span>
+          </div>
+          <span class="material-symbols-outlined text-sm">chevron_right</span>
+        </a>
+        <a href="gamification.html" class="w-full flex items-center justify-between p-4 bg-white hover:bg-purple-600 hover:text-white transition-all rounded-2xl border border-outline-variant/30 group shadow-sm">
+          <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined text-purple-600 group-hover:text-white" style="font-variation-settings:'FILL' 1">leaderboard</span>
+            <span class="font-bold">Leaderboard</span>
+          </div>
+          <span class="material-symbols-outlined text-sm">chevron_right</span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="h-8"></div>
+</div>
+</main>
+
+<!-- ── Mobile Bottom Nav ────────────────────────────────────────── -->
+<nav class="lg:hidden fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-slate-200 flex items-center justify-around px-2 z-50 shadow-lg">
+  <a href="index.html" class="flex flex-col items-center gap-0.5 text-secondary">
+    <span class="material-symbols-outlined text-xl" style="font-variation-settings:'FILL' 1">dashboard</span>
+    <span class="text-[9px] font-bold">Home</span>
+  </a>
+  <a href="Enviornment.html" class="flex flex-col items-center gap-0.5 text-gray-400">
+    <span class="material-symbols-outlined text-xl">eco</span>
+    <span class="text-[9px] font-medium">Enviro</span>
+  </a>
+  <a href="social.html" class="flex flex-col items-center gap-0.5 text-gray-400">
+    <span class="material-symbols-outlined text-xl">group</span>
+    <span class="text-[9px] font-medium">Social</span>
+  </a>
+  <a href="gamification.html" class="flex flex-col items-center gap-0.5 text-gray-400">
+    <span class="material-symbols-outlined text-xl">military_tech</span>
+    <span class="text-[9px] font-medium">Games</span>
+  </a>
+  <a href="report.html" class="flex flex-col items-center gap-0.5 text-gray-400">
+    <span class="material-symbols-outlined text-xl">assessment</span>
+    <span class="text-[9px] font-medium">Reports</span>
+  </a>
+</nav>
+
+<script src="js/app.js"></script>
+<script src="js/chatbot.js"></script>
+<script src="js/ocr.js"></script>
+<script src="js/csr-verify.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    // Gauge animation
+    const ring = document.querySelector('.gauge-ring');
+    if (ring) {
+      ring.style.strokeDashoffset = '565';
+      setTimeout(() => {
+        ring.style.strokeDashoffset = '102'; // ~82%
+      }, 400);
+    }
+
+    // Progress bars in department chart animate on load
+    document.querySelectorAll('[data-progress]').forEach(bar => {
+      const target = bar.getAttribute('data-progress');
+      bar.style.height = '0%';
+      setTimeout(() => {
+        bar.style.transition = 'height 1.2s cubic-bezier(0.4, 0, 0.2, 1)';
+        bar.style.height = target + '%';
+      }, 500);
+    });
+
+    // Simulate live activity feed additions
+    setInterval(() => {
+      const feed = document.getElementById('activity-feed');
+      if (!feed) return;
+      const activities = [
+        { icon: 'receipt_long', bg: 'bg-green-100', color: 'text-green-600', msg: '<span class="font-bold">AI OCR</span> processed a <span class="text-secondary font-bold">Diesel Receipt — 0.34 tCO2e</span>', dept: 'Fleet Ops' },
+        { icon: 'verified', bg: 'bg-orange-100', color: 'text-orange-600', msg: '<span class="font-bold">Jordan Lee</span> had their tree planting photo <span class="text-secondary font-bold">AI-verified ✓</span> (+300 XP)', dept: 'Operations' },
+        { icon: 'gavel', bg: 'bg-purple-100', color: 'text-purple-600', msg: '<span class="font-bold">Governance Bot</span> flagged a <span class="text-secondary font-bold">compliance deadline</span> for IT Dept', dept: 'Governance' },
+      ];
+      const item = activities[Math.floor(Math.random() * activities.length)];
+      const div = document.createElement('div');
+      div.className = 'flex gap-4 items-start pb-5 border-b border-outline-variant/30 animate-pulse';
+      div.innerHTML = `
+        <div class="w-10 h-10 rounded-full ${item.bg} flex items-center justify-center shrink-0">
+          <span class="material-symbols-outlined ${item.color} text-xl">${item.icon}</span>
+        </div>
+        <div class="flex-1">
+          <p class="text-sm font-medium">${item.msg}</p>
+          <p class="text-xs text-on-surface-variant mt-1">${item.dept} • Just now</p>
+        </div>`;
+      feed.prepend(div);
+      // Keep only 4 items visible
+      while (feed.children.length > 4) feed.lastChild.remove();
+      setTimeout(() => div.classList.remove('animate-pulse'), 1500);
+    }, 12000);
+  });
+</script>
+</body>
+</html>
