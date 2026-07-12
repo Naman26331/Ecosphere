@@ -11,6 +11,7 @@ import { all, get, run, tx, audit } from '../db.js';
 import * as esg from '../lib/esg.js';
 import * as gamify from '../lib/gamify.js';
 import * as ai from '../ai/index.js';
+import * as auth from '../lib/auth.js';
 import { readJson, readMultipart } from '../lib/http.js';
 
 const UPLOADS = join(process.cwd(), 'data', 'uploads');
@@ -28,6 +29,36 @@ function saveUpload(file) {
 }
 
 export default function registerRoutes(r) {
+  // =========================================================================
+  // AUTH
+  // =========================================================================
+
+  /** Log in with the email + password held in the users table. */
+  r.post('/api/auth/login', async (req, res) => {
+    const { email, password } = await readJson(req);
+    if (!email || !password) throw bad('Email and password are required');
+
+    const { token, user } = auth.login(email, password); // throws 401 if wrong
+
+    res.setHeader('Set-Cookie', auth.sessionCookie(token));
+    audit(user.name, 'login', 'user', user.id, user.email);
+    return { user };
+  });
+
+  r.post('/api/auth/logout', (req, res) => {
+    const user = auth.currentUser(req);
+    if (user) audit(user.name, 'logout', 'user', user.id, user.email);
+    res.setHeader('Set-Cookie', auth.clearCookie());
+    return { ok: true };
+  });
+
+  /** Who am I? The shell calls this on every page to render the real user. */
+  r.get('/api/auth/me', (req) => {
+    const user = auth.currentUser(req);
+    if (!user) throw bad('Not signed in', 401);
+    return { user };
+  });
+
   // =========================================================================
   // DASHBOARD
   // =========================================================================
@@ -448,6 +479,65 @@ export default function registerRoutes(r) {
         GROUP BY b.id ORDER BY b.xp_threshold`
     )
   );
+
+  // =========================================================================
+  // REWARDS
+  // =========================================================================
+
+  /**
+   * The catalog, plus what the SIGNED-IN user can actually do with it.
+   * `affordable` / `canRedeem` are computed server-side against req.user, so the
+   * button state can't be talked into lying by editing the page.
+   */
+  r.get('/api/rewards', (req) => {
+    const me = req.user;
+    const rewards = all(
+      `SELECT rw.*,
+              (SELECT COUNT(*) FROM redemptions rd WHERE rd.reward_id = rw.id) AS redeemed_count
+         FROM rewards rw
+        ORDER BY rw.status = 'inactive', rw.points_required`
+    );
+    const balance = me?.points_balance ?? 0;
+
+    return {
+      me: { id: me.id, name: me.name, points_balance: balance, xp: me.xp },
+      rewards: rewards.map((rw) => ({
+        ...rw,
+        in_stock: rw.stock > 0,
+        affordable: balance >= rw.points_required,
+        canRedeem: rw.status === 'active' && rw.stock > 0 && balance >= rw.points_required,
+        short_by: Math.max(0, rw.points_required - balance),
+      })),
+    };
+  });
+
+  /** Redeem. The user comes from the session -- never from the request body. */
+  r.post('/api/rewards/:id/redeem', (req) => {
+    const me = req.user;
+    const result = gamify.redeem(Number(req.params.id), me.id, me.name);
+    return {
+      ...result,
+      message: `Redeemed "${result.reward.name}" for ${result.pointsSpent} points. ${result.pointsBalance} points left.`,
+    };
+  });
+
+  /** Redemption history. `?mine=true` for just the signed-in user. */
+  r.get('/api/redemptions', (req) => {
+    const url = new URL(req.url, 'http://localhost');
+    const mine = url.searchParams.get('mine') === 'true';
+    return all(
+      `SELECT rd.id, rd.points_spent, rd.status, rd.redeemed_at,
+              rw.name AS reward, rw.icon,
+              u.name AS employee, d.name AS department
+         FROM redemptions rd
+         JOIN rewards rw ON rw.id = rd.reward_id
+         JOIN users u    ON u.id = rd.user_id
+         LEFT JOIN departments d ON d.id = u.department_id
+        WHERE 1=1 ${mine ? 'AND rd.user_id = ?' : ''}
+        ORDER BY rd.id DESC LIMIT 20`,
+      mine ? [req.user.id] : []
+    );
+  });
 
   // =========================================================================
   // GOVERNANCE

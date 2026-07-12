@@ -60,6 +60,34 @@
       <div id="challenges" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-gutter"></div>
     </section>
 
+    <!-- Rewards catalog -->
+    <section class="card p-6 lg:p-8">
+      <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-6 gap-4">
+        <div>
+          <h3 class="text-title-lg text-on-surface">Rewards Catalog</h3>
+          <p class="text-body-md text-on-surface-variant">
+            Spend the points you earned from approved challenges
+          </p>
+        </div>
+        <!-- The wallet. Redeeming visibly debits this. -->
+        <div id="wallet" class="shrink-0 flex items-center gap-3 rounded-2xl bg-orange-50 border border-orange-200 px-4 py-3">
+          <span class="material-symbols-outlined icon-filled text-orange-500">account_balance_wallet</span>
+          <div>
+            <p class="text-label-sm text-on-surface-variant uppercase tracking-wide">Your balance</p>
+            <p id="wallet-balance" class="text-title-lg font-bold text-orange-600 leading-tight tabular-nums">—</p>
+          </div>
+        </div>
+      </div>
+
+      <div id="rewards" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4"></div>
+
+      <div class="mt-8 pt-6 border-t border-outline-variant">
+        <h4 class="text-title-lg text-on-surface mb-1">Recent Redemptions</h4>
+        <p class="text-body-md text-on-surface-variant mb-4">Every redemption, and what it cost</p>
+        <div id="redemptions" class="space-y-3"></div>
+      </div>
+    </section>
+
     <!-- Badge gallery -->
     <section class="card p-6 lg:p-8">
       <div class="flex items-start justify-between mb-6 gap-4">
@@ -76,7 +104,8 @@
 </main>
 
 <script type="module">
-import { api, page, fmt, esc, html, render, emptyState, scoreColor, scoreBg } from '/assets/app.js';
+import { api, page, fmt, esc, html, render, emptyState, scoreColor, scoreBg,
+         toast, chip, $, $$ } from '/assets/app.js';
 
 // Tier -> the whole visual identity of a badge. Kept in one place so the ring,
 // the chip and the icon can never disagree about what "gold" looks like.
@@ -325,7 +354,117 @@ page('gamification', {
       </div>
     `;
   }).join('') : emptyState('No badges configured', 'military_tech'));
+
+  await refreshRewards();
 });
+
+// ---------------------------------------------------------------------------
+// Rewards
+// ---------------------------------------------------------------------------
+
+/** Repaint the catalog, the wallet and the history -- a redemption moves all three. */
+async function refreshRewards() {
+  const [{ me, rewards }, redemptions] = await Promise.all([
+    api.get('/api/rewards'),
+    api.get('/api/redemptions'),
+  ]);
+
+  $('#wallet-balance').textContent = `${fmt.n(me.points_balance)} pts`;
+
+  render('#rewards', rewards.length ? rewards.map((rw) => {
+    const retired = rw.status !== 'active';
+    const out = rw.stock <= 0;
+
+    // Why the button is disabled matters more than that it is. Say which.
+    const blocked = retired
+      ? 'Retired'
+      : out
+        ? 'Out of stock'
+        : !rw.affordable
+          ? `Need ${fmt.n(rw.short_by)} more`
+          : null;
+
+    return html`
+      <div class="rounded-2xl border p-5 flex flex-col transition
+                  ${blocked ? 'border-outline-variant bg-surface-container-low opacity-75'
+                            : 'border-orange-200 bg-white hover:border-orange-400 hover:shadow-sm'}">
+        <div class="flex items-start justify-between gap-2 mb-4">
+          <div class="w-12 h-12 shrink-0 rounded-2xl flex items-center justify-center
+                      ${blocked ? 'bg-surface-container' : 'bg-orange-50'}">
+            <span class="material-symbols-outlined icon-filled ${blocked ? 'text-outline' : 'text-orange-500'}">
+              ${esc(rw.icon)}
+            </span>
+          </div>
+          ${out && !retired
+            ? '<span class="text-label-sm font-bold px-2.5 py-1 rounded-full bg-error-container text-on-error-container whitespace-nowrap">Out of stock</span>'
+            : retired
+              ? chip('inactive')
+              : `<span class="text-label-sm font-bold px-2.5 py-1 rounded-full bg-surface-container text-on-surface-variant whitespace-nowrap tabular-nums">${fmt.n(rw.stock)} left</span>`}
+        </div>
+
+        <h4 class="text-title-lg text-on-surface leading-snug">${esc(rw.name)}</h4>
+        <p class="text-body-md text-on-surface-variant mt-1 flex-1">${esc(rw.description ?? '')}</p>
+
+        <div class="flex items-center gap-1.5 mt-4 mb-4">
+          <span class="material-symbols-outlined text-orange-500 text-lg">stars</span>
+          <span class="text-title-lg font-bold text-orange-600 tabular-nums">${fmt.n(rw.points_required)}</span>
+          <span class="text-label-md text-on-surface-variant">points</span>
+          ${rw.redeemed_count
+            ? `<span class="ml-auto text-label-sm text-on-surface-variant tabular-nums">${fmt.n(rw.redeemed_count)} redeemed</span>`
+            : ''}
+        </div>
+
+        <button data-redeem="${rw.id}" ${rw.canRedeem ? '' : 'disabled'}
+                class="w-full min-h-[44px] rounded-xl font-semibold text-label-md flex items-center
+                       justify-center gap-1.5 transition active:scale-95
+                       ${rw.canRedeem
+                         ? 'bg-orange-500 text-white shadow-sm hover:shadow-md'
+                         : 'bg-surface-container text-on-surface-variant cursor-not-allowed active:scale-100'}">
+          <span class="material-symbols-outlined text-lg">${rw.canRedeem ? 'redeem' : 'lock'}</span>
+          ${blocked ?? 'Redeem'}
+        </button>
+      </div>
+    `;
+  }).join('') : emptyState('No rewards in the catalog', 'redeem'));
+
+  $$('[data-redeem]').forEach((b) => (b.onclick = () => redeem(b, Number(b.dataset.redeem))));
+
+  render('#redemptions', redemptions.length ? redemptions.map((rd) => html`
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 shrink-0 rounded-full bg-orange-50 flex items-center justify-center">
+        <span class="material-symbols-outlined text-orange-500 text-lg">${esc(rd.icon)}</span>
+      </div>
+      <div class="flex-1 min-w-0">
+        <p class="text-body-md text-on-surface truncate">
+          <span class="font-semibold">${esc(rd.employee)}</span> redeemed ${esc(rd.reward)}
+        </p>
+        <p class="text-label-sm text-on-surface-variant">
+          ${esc(rd.department ?? '')} · ${fmt.ago(rd.redeemed_at)}
+        </p>
+      </div>
+      <span class="text-label-md font-bold text-orange-600 tabular-nums whitespace-nowrap shrink-0">
+        −${fmt.n(rd.points_spent)}
+      </span>
+    </div>
+  `).join('') : emptyState('Nothing redeemed yet', 'history'));
+}
+
+async function redeem(button, rewardId) {
+  button.disabled = true;
+  const original = button.innerHTML;
+  button.innerHTML = '<span class="material-symbols-outlined text-lg">hourglass_top</span>Redeeming…';
+
+  try {
+    const res = await api.post(`/api/rewards/${rewardId}/redeem`);
+    toast(res.message, 'award', 6000);
+    await refreshRewards(); // wallet, stock and history all moved
+  } catch (err) {
+    // Out of stock / not enough points come back as a 409 with a real reason.
+    toast(err.message, 'error', 6000);
+    button.innerHTML = original;
+    button.disabled = false;
+  }
+}
 </script>
 </body>
 </html>

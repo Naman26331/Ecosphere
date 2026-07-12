@@ -60,13 +60,84 @@ export function approve(participationId, actor = 'system') {
         WHERE id = ?`,
       [p.points, participationId]
     );
-    run(`UPDATE users SET xp = xp + ? WHERE id = ?`, [p.xp, p.user_id]);
+    // XP (lifetime, drives badges + rank) and points (spendable on rewards) are
+    // both credited here -- this approval is the only place either is minted.
+    run(
+      `UPDATE users SET xp = xp + ?, points_balance = points_balance + ? WHERE id = ?`,
+      [p.xp, p.points, p.user_id]
+    );
 
     const newBadges = syncBadges(p.user_id);
-    const { xp } = get(`SELECT xp FROM users WHERE id = ?`, [p.user_id]);
+    const u = get(`SELECT xp, points_balance FROM users WHERE id = ?`, [p.user_id]);
 
     audit(actor, 'participation_approved', 'participation', participationId, p.title);
-    return { xp, level: levelFor(xp), pointsAwarded: p.points, xpAwarded: p.xp, newBadges };
+    return {
+      xp: u.xp,
+      pointsBalance: u.points_balance,
+      level: levelFor(u.xp),
+      pointsAwarded: p.points,
+      xpAwarded: p.xp,
+      newBadges,
+    };
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Rewards
+// ---------------------------------------------------------------------------
+
+/**
+ * Redeem a reward.
+ *
+ * Everything happens inside ONE transaction: re-read the reward, check stock and
+ * balance, then decrement both and write the ledger row. Checking outside the
+ * transaction would let two redemptions of the last item in stock both pass the
+ * check and both succeed -- the classic oversell. Re-reading the row inside is
+ * what makes the check and the decrement atomic.
+ */
+export function redeem(rewardId, userId, actor = 'system') {
+  return tx(() => {
+    const reward = get(`SELECT * FROM rewards WHERE id = ?`, [rewardId]);
+    if (!reward) throw Object.assign(new Error('Reward not found'), { status: 404 });
+
+    const user = get(`SELECT id, name, points_balance FROM users WHERE id = ?`, [userId]);
+    if (!user) throw Object.assign(new Error('User not found'), { status: 404 });
+
+    if (reward.status !== 'active') {
+      throw Object.assign(new Error(`"${reward.name}" is not currently available.`), { status: 409 });
+    }
+    if (reward.stock <= 0) {
+      throw Object.assign(new Error(`"${reward.name}" is out of stock.`), { status: 409 });
+    }
+    if (user.points_balance < reward.points_required) {
+      const short = reward.points_required - user.points_balance;
+      throw Object.assign(
+        new Error(`You need ${short} more point${short === 1 ? '' : 's'} to redeem "${reward.name}".`),
+        { status: 409 }
+      );
+    }
+
+    run(`UPDATE rewards SET stock = stock - 1 WHERE id = ?`, [rewardId]);
+    run(`UPDATE users SET points_balance = points_balance - ? WHERE id = ?`, [
+      reward.points_required,
+      userId,
+    ]);
+    const { id } = run(
+      `INSERT INTO redemptions (reward_id, user_id, points_spent) VALUES (?, ?, ?)`,
+      [rewardId, userId, reward.points_required]
+    );
+
+    const after = get(`SELECT points_balance FROM users WHERE id = ?`, [userId]);
+    audit(actor, 'reward_redeemed', 'reward', rewardId,
+      `${user.name} redeemed "${reward.name}" for ${reward.points_required} points`);
+
+    return {
+      id,
+      reward: { id: reward.id, name: reward.name, icon: reward.icon },
+      pointsSpent: reward.points_required,
+      pointsBalance: after.points_balance,
+      stockLeft: reward.stock - 1,
+    };
   });
 }
 

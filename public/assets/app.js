@@ -5,9 +5,22 @@
 // API
 // ---------------------------------------------------------------------------
 
+/**
+ * A 401 means the session is gone -- expired, or signed out in another tab.
+ * Bounce to the login page rather than letting each caller invent its own
+ * handling and leave a half-dead dashboard on screen. `next` brings the user
+ * back to the page they were on once they sign in.
+ */
+function handleUnauthorized(res) {
+  if (res.status !== 401 || location.pathname === '/login') return false;
+  location.href = `/login?next=${encodeURIComponent(location.pathname)}`;
+  return true;
+}
+
 export const api = {
   async get(path) {
     const res = await fetch(path, { headers: { Accept: 'application/json' } });
+    if (handleUnauthorized(res)) return new Promise(() => {}); // never settles; page is navigating
     if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? res.statusText);
     return res.json();
   },
@@ -17,6 +30,9 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body ?? {}),
     });
+    // The login endpoint returns 401 on a bad password -- that is a normal
+    // answer to show the user, not a dead session, so don't redirect on it.
+    if (!path.startsWith('/api/auth/') && handleUnauthorized(res)) return new Promise(() => {});
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error ?? res.statusText);
     return data;
@@ -305,11 +321,17 @@ export function mountShell(active, { title, subtitle } = {}) {
 
       <div class="pt-4 mt-4 border-t border-outline-variant shrink-0">
         <div class="flex items-center gap-3 px-2">
-          <div class="w-9 h-9 rounded-full bg-primary-container flex items-center justify-center text-on-primary-container font-bold text-body-md">AR</div>
-          <div class="min-w-0">
-            <p class="text-body-md font-semibold text-on-surface truncate">Alex Rivera</p>
-            <p class="text-label-sm text-on-surface-variant uppercase">Sustainability Officer</p>
+          <div id="nav-avatar" class="w-9 h-9 shrink-0 rounded-full bg-primary-container flex items-center
+                      justify-center text-on-primary-container font-bold text-body-md">··</div>
+          <div class="min-w-0 flex-1">
+            <p id="nav-name" class="text-body-md font-semibold text-on-surface truncate">Loading…</p>
+            <p id="nav-role" class="text-label-sm text-on-surface-variant uppercase truncate"></p>
           </div>
+          <button id="logout-btn" aria-label="Sign out" title="Sign out"
+                  class="p-2 shrink-0 rounded-full text-on-surface-variant hover:bg-surface-container-high
+                         hover:text-error active:scale-90 transition">
+            <span class="material-symbols-outlined">logout</span>
+          </button>
         </div>
       </div>
     </aside>
@@ -341,8 +363,8 @@ export function mountShell(active, { title, subtitle } = {}) {
           <span class="material-symbols-outlined">notifications</span>
           <span id="notif-dot" class="hidden absolute top-1.5 right-1.5 w-2 h-2 bg-error rounded-full"></span>
         </button>
-        <div class="w-9 h-9 rounded-full bg-primary-container flex items-center justify-center
-                    text-on-primary-container font-bold text-label-md">AR</div>
+        <div id="top-avatar" class="w-9 h-9 rounded-full bg-primary-container flex items-center justify-center
+                    text-on-primary-container font-bold text-label-md">··</div>
       </div>
     </header>
 
@@ -380,6 +402,45 @@ export function mountShell(active, { title, subtitle } = {}) {
   $$('#sidebar a').forEach((a) => a.addEventListener('click', () => setOpen(false)));
 
   $('#ask-ai-btn').onclick = () => openChat();
+
+  $('#logout-btn').onclick = async () => {
+    await api.post('/api/auth/logout').catch(() => {});
+    location.href = '/login';
+  };
+
+  hydrateUser();
+}
+
+/** The signed-in user is fetched, never assumed -- the shell has no idea who
+ *  you are until the server says so. */
+export const initials = (name) =>
+  (name ?? '?')
+    .split(' ')
+    .filter(Boolean)
+    .map((p) => p[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+
+let ME = null;
+export const me = () => ME;
+
+async function hydrateUser() {
+  try {
+    const { user } = await api.get('/api/auth/me');
+    ME = user;
+
+    const badge = initials(user.name);
+    $('#nav-avatar').textContent = badge;
+    $('#top-avatar').textContent = badge;
+    $('#nav-name').textContent = user.name;
+    $('#nav-role').textContent = user.department
+      ? `${user.role} · ${user.department}`
+      : user.role;
+  } catch {
+    // The session died under us (expired, or signed out in another tab).
+    location.href = '/login';
+  }
 }
 
 // ---------------------------------------------------------------------------

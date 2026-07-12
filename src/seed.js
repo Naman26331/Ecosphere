@@ -5,6 +5,7 @@
 // are the numbers on screen when you present.
 import { migrate, run, all, get, tx } from './db.js';
 import db from './db.js';
+import { hashPassword } from './lib/auth.js';
 
 // Mulberry32 -- tiny, fast, and stable across Node versions.
 let _s = 20260712;
@@ -117,6 +118,12 @@ tx(() => {
   const FIRST = ['Arjun','Maya','Kabir','Leila','Noah','Sofia','Rohan','Elena','Tariq','Ava','Jonas','Isha','Pedro','Anya','Samir','Clara','Dev','Nadia','Felix','Zara','Ravi','Mila','Owen','Divya','Hugo','Reem','Kian','Lucia','Amir','Freya'];
   const LAST  = ['Kapoor','Mendes','Okafor','Larsen','Ahmed','Rossi','Nakamura','Silva','Haas','Kowalski','Batista','Fischer','Nair','Duarte','Petrov','Osei','Lindqvist','Varga','Moreau','Bianchi','Sethi','Vargas','Jensen','Iqbal','Costa','Weber','Bhat','Ferreira','Novak','Adeyemi'];
 
+  // Everyone gets the same demo password. It is hashed with a per-user random
+  // salt before it touches the database -- the plaintext below never lands in a
+  // column, so two people sharing a password still get two different hashes.
+  const DEMO_PASSWORD = 'eco1234';
+  const demoHash = () => hashPassword(DEMO_PASSWORD); // re-salted every call
+
   const userIds = [];
   const seen = new Set();
   const addUser = (name, role, code) => {
@@ -126,10 +133,11 @@ tx(() => {
     while (seen.has(email)) email = `${base}${n++}@vertex.example`; // collisions are inevitable
     seen.add(email);
     const { id } = run(
-      `INSERT INTO users (name, email, role, department_id, xp) VALUES (?, ?, ?, ?, 0)`,
-      [name, email, role, deptId[code]]
+      `INSERT INTO users (name, email, role, department_id, xp, password_hash)
+       VALUES (?, ?, ?, ?, 0, ?)`,
+      [name, email, role, deptId[code], demoHash()]
     );
-    userIds.push({ id, code, role });
+    userIds.push({ id, code, role, email });
   };
 
   for (const [name, role, code] of leads) addUser(name, role, code);
@@ -322,16 +330,29 @@ tx(() => {
   // --- Participations -------------------------------------------------------
   // Some auto-approved by AI vision, some rejected, some still queued -- so the
   // Social approval screen has real work sitting in it during the demo.
+  // The three accounts on the login screen are guaranteed a few APPROVED
+  // challenges, so whoever demos this actually has points to spend. The balance
+  // is still earned the normal way -- nothing is handed to them directly, so the
+  // earned-minus-spent reconciliation still holds.
+  const DEMO_LOGINS = new Set([
+    'alex.rivera@vertex.example',
+    'priya.sharma@vertex.example',
+    'aditi.rao@vertex.example',
+  ]);
+
   for (const u of userIds) {
-    const n = Math.floor(between(0, 4.5));
+    const isDemo = DEMO_LOGINS.has(u.email);
+    const n = isDemo ? 4 : Math.floor(between(0, 4.5));
     const taken = new Set();
     for (let i = 0; i < n; i++) {
-      const c = pick(challengeIds);
+      const c = isDemo ? challengeIds[i % challengeIds.length] : pick(challengeIds);
       if (taken.has(c.id)) continue;
       taken.add(c.id);
 
       const roll = rnd();
-      const status = roll < 0.66 ? 'approved' : roll < 0.85 ? 'pending' : 'rejected';
+      const status = isDemo
+        ? 'approved'
+        : roll < 0.66 ? 'approved' : roll < 0.85 ? 'pending' : 'rejected';
       const conf = status === 'approved' ? between(0.86, 0.99)
         : status === 'pending' ? between(0.55, 0.84)
         : between(0.1, 0.4);
@@ -356,8 +377,13 @@ tx(() => {
         ]
       );
 
+      // Same rule as the live approve() path: XP and spendable points together.
       if (status === 'approved') {
-        run(`UPDATE users SET xp = xp + ? WHERE id = ?`, [c.xp, u.id]);
+        run(`UPDATE users SET xp = xp + ?, points_balance = points_balance + ? WHERE id = ?`, [
+          c.xp,
+          c.points,
+          u.id,
+        ]);
       }
     }
   }
@@ -371,6 +397,56 @@ tx(() => {
         [u.id, b.id]
       );
     }
+  }
+
+  // --- Rewards --------------------------------------------------------------
+  // Two are seeded deliberately un-redeemable so both refusal paths are real and
+  // demonstrable: one is OUT OF STOCK, one is priced above what any employee has.
+  const rewards = [
+    ['Reusable Steel Bottle', 'EcoSphere-branded insulated bottle, 750ml.', 150, 40, 'active', 'water_bottle'],
+    ['Plant a Tree in Your Name', 'We plant a sapling and send you the geo-tag.', 200, 100, 'active', 'park'],
+    ['Canteen Voucher (₹500)', 'Redeemable at any company canteen.', 300, 25, 'active', 'restaurant'],
+    ['Work From Home Day', 'One extra WFH day, no questions asked.', 500, 12, 'active', 'home_work'],
+    ['Charity Donation (₹1000)', 'We donate to a climate charity of your choice.', 600, 30, 'active', 'volunteer_activism'],
+    ['Limited Edition Hoodie', 'Organic cotton. Very few made.', 750, 0, 'active', 'checkroom'],       // out of stock
+    ['Extra Annual Leave Day', 'One additional paid day off.', 2000, 5, 'active', 'beach_access'],      // priced out of reach
+    ['Last Year’s Tote Bag', 'Discontinued design.', 100, 8, 'inactive', 'shopping_bag'],               // retired
+  ];
+  const rewardIds = [];
+  for (const [name, desc, points, stock, status, icon] of rewards) {
+    const { id } = run(
+      `INSERT INTO rewards (name, description, points_required, stock, status, icon)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [name, desc, points, stock, status, icon]
+    );
+    rewardIds.push({ id, points, stock, status });
+  }
+
+  // --- Redemption history ---------------------------------------------------
+  // Backfilled through the SAME arithmetic the live route uses: every historic
+  // redemption debits the employee's balance and decrements the reward's stock.
+  // Faking the rows without moving the numbers would leave balances and stock
+  // that don't reconcile with the ledger -- the first thing an auditor checks.
+  for (const u of userIds) {
+    if (DEMO_LOGINS.has(u.email)) continue; // leave the demo wallets full to spend on stage
+    if (rnd() > 0.22) continue; // roughly 1 in 5 employees has cashed something in
+
+    const balance = get(`SELECT points_balance FROM users WHERE id = ?`, [u.id]).points_balance;
+    const affordable = rewardIds.filter(
+      (rw) => rw.status === 'active' && rw.stock > 0 && rw.points <= balance
+    );
+    if (!affordable.length) continue;
+
+    const rw = pick(affordable);
+    run(`UPDATE rewards SET stock = stock - 1 WHERE id = ?`, [rw.id]);
+    run(`UPDATE users SET points_balance = points_balance - ? WHERE id = ?`, [rw.points, u.id]);
+    run(
+      `INSERT INTO redemptions (reward_id, user_id, points_spent, status, redeemed_at)
+       VALUES (?, ?, ?, ?, ?)`,
+      [rw.id, u.id, rw.points, rnd() < 0.7 ? 'fulfilled' : 'confirmed',
+       iso(daysAgo(Math.floor(between(1, 45))))]
+    );
+    rw.stock -= 1; // keep the in-memory copy honest for the next iteration
   }
 
   // --- Policies -------------------------------------------------------------

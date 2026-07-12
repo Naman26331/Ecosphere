@@ -19,11 +19,22 @@ CREATE TABLE IF NOT EXISTS departments (
 CREATE TABLE IF NOT EXISTS users (
   id            INTEGER PRIMARY KEY,
   name          TEXT    NOT NULL,
-  email         TEXT    NOT NULL UNIQUE,
+  email         TEXT    NOT NULL UNIQUE,   -- this is the login id
   role          TEXT    NOT NULL DEFAULT 'employee',   -- employee | manager | officer | admin
   department_id INTEGER REFERENCES departments(id),
   avatar        TEXT,
-  xp            INTEGER NOT NULL DEFAULT 0
+  -- XP and points are deliberately separate. XP is lifetime achievement: it only
+  -- ever goes up, and it is what badges and the leaderboard read. points_balance
+  -- is a spendable wallet: earned on the same approval, then SPENT on rewards.
+  -- Sharing one number would mean redeeming a reward silently demoted your rank
+  -- and could claw back a badge you had already earned.
+  xp            INTEGER NOT NULL DEFAULT 0,
+  points_balance INTEGER NOT NULL DEFAULT 0,
+  -- NEVER the password itself. Stored as scrypt$<salt>$<hash>, which is one-way:
+  -- we can check a password against it, but nobody -- including us -- can read
+  -- the password back out of it. If this file leaks, the accounts still hold.
+  password_hash TEXT,
+  last_login    TEXT
 );
 
 -- kg of CO2e released per 1 unit of activity. The heart of the OCR pipeline:
@@ -46,6 +57,18 @@ CREATE TABLE IF NOT EXISTS badges (
   icon          TEXT    NOT NULL DEFAULT 'military_tech',
   tier          TEXT    NOT NULL DEFAULT 'bronze',   -- bronze | silver | gold | platinum
   xp_threshold  INTEGER NOT NULL                     -- auto-awarded when user.xp >= this
+);
+
+-- Redeemable incentives. Fields per the spec: Name, Description, Points
+-- Required, Stock, Status.
+CREATE TABLE IF NOT EXISTS rewards (
+  id              INTEGER PRIMARY KEY,
+  name            TEXT    NOT NULL,
+  description     TEXT,
+  points_required INTEGER NOT NULL,
+  stock           INTEGER NOT NULL DEFAULT 0,
+  status          TEXT    NOT NULL DEFAULT 'active',  -- active | inactive
+  icon            TEXT    NOT NULL DEFAULT 'redeem'
 );
 
 CREATE TABLE IF NOT EXISTS policies (
@@ -120,6 +143,19 @@ CREATE TABLE IF NOT EXISTS participations (
   submitted_at   TEXT    NOT NULL DEFAULT (datetime('now')),
   reviewed_at    TEXT,
   UNIQUE (challenge_id, user_id)
+);
+
+-- One row per redemption. Append-only: this is the ledger that explains why an
+-- employee's points_balance is what it is, and it's what stock decrements are
+-- reconciled against.
+CREATE TABLE IF NOT EXISTS redemptions (
+  id           INTEGER PRIMARY KEY,
+  reward_id    INTEGER NOT NULL REFERENCES rewards(id),
+  user_id      INTEGER NOT NULL REFERENCES users(id),
+  points_spent INTEGER NOT NULL,   -- captured at redemption time; the reward's
+                                   -- price may change later, this must not
+  status       TEXT    NOT NULL DEFAULT 'confirmed', -- confirmed | fulfilled
+  redeemed_at  TEXT    NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE TABLE IF NOT EXISTS user_badges (

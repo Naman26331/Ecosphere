@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Sign in | EcoSphere Auto-Pilot</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+<script src="/assets/theme.js"></script>
+<link rel="stylesheet" href="/assets/styles.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+</head>
+<body class="bg-background text-on-surface font-sans min-h-screen">
+
+<div class="min-h-screen grid lg:grid-cols-2">
+
+  <!-- Brand panel. Hidden on phones -- a login screen on a 375px display should
+       be the form and nothing else. -->
+  <div class="hidden lg:flex flex-col justify-between bg-primary text-white p-12">
+    <div class="flex items-center gap-3">
+      <div class="w-11 h-11 bg-white/10 rounded-xl flex items-center justify-center">
+        <span class="material-symbols-outlined icon-filled text-white">eco</span>
+      </div>
+      <div>
+        <h1 class="text-headline-md font-bold leading-tight">EcoSphere</h1>
+        <p class="text-label-sm uppercase tracking-wider text-white/60">Auto-Pilot</p>
+      </div>
+    </div>
+
+    <div class="max-w-md">
+      <h2 class="text-headline-lg leading-tight">ESG reporting that fills itself in.</h2>
+      <p class="text-body-lg text-white/70 mt-4">
+        Bills are read automatically, challenge proof is verified by AI, and your
+        ESG score recomputes off the ledger the moment either one lands.
+      </p>
+      <ul class="mt-8 space-y-3 text-body-md text-white/80">
+        <li class="flex items-center gap-3">
+          <span class="material-symbols-outlined text-secondary-fixed-dim">document_scanner</span>
+          OCR reads usage straight off a utility bill
+        </li>
+        <li class="flex items-center gap-3">
+          <span class="material-symbols-outlined text-secondary-fixed-dim">verified</span>
+          Vision verifies challenge photos, then awards the badge
+        </li>
+        <li class="flex items-center gap-3">
+          <span class="material-symbols-outlined text-secondary-fixed-dim">auto_awesome</span>
+          Ask the data a question in plain English
+        </li>
+      </ul>
+    </div>
+
+    <p class="text-label-md text-white/40">40% Environmental · 30% Social · 30% Governance</p>
+  </div>
+
+  <!-- Form -->
+  <div class="flex items-center justify-center p-6 lg:p-12">
+    <div class="w-full max-w-sm">
+
+      <!-- The logo again, for phones, where the brand panel is hidden. -->
+      <div class="flex lg:hidden items-center gap-3 mb-10">
+        <div class="w-11 h-11 bg-primary-container rounded-xl flex items-center justify-center">
+          <span class="material-symbols-outlined icon-filled text-on-primary-container">eco</span>
+        </div>
+        <div>
+          <h1 class="text-headline-md font-bold text-primary leading-tight">EcoSphere</h1>
+          <p class="text-label-sm uppercase tracking-wider text-on-surface-variant">Auto-Pilot</p>
+        </div>
+      </div>
+
+      <h2 class="text-headline-md text-on-surface">Sign in</h2>
+      <p class="text-body-md text-on-surface-variant mt-1 mb-8">
+        Use your work email to access the ESG dashboard.
+      </p>
+
+      <form id="login-form" class="space-y-4" novalidate>
+        <label class="block">
+          <span class="text-label-md text-on-surface-variant">Email</span>
+          <input id="email" name="email" type="email" autocomplete="username" required
+                 placeholder="alex.rivera@vertex.example"
+                 class="mt-1 w-full min-h-[48px] rounded-xl border-outline-variant bg-surface-container-low
+                        text-body-md focus:ring-secondary focus:border-secondary">
+        </label>
+
+        <label class="block">
+          <span class="text-label-md text-on-surface-variant">Password</span>
+          <div class="relative mt-1">
+            <input id="password" name="password" type="password" autocomplete="current-password" required
+                   placeholder="••••••••"
+                   class="w-full min-h-[48px] pr-12 rounded-xl border-outline-variant bg-surface-container-low
+                          text-body-md focus:ring-secondary focus:border-secondary">
+            <button type="button" id="toggle-pw" aria-label="Show password"
+                    class="absolute right-1 top-1/2 -translate-y-1/2 p-2 rounded-full
+                           text-on-surface-variant hover:bg-surface-container-high">
+              <span class="material-symbols-outlined text-xl">visibility</span>
+            </button>
+          </div>
+        </label>
+
+        <!-- Errors land here rather than in an alert() -->
+        <p id="error" class="hidden flex items-center gap-2 text-body-md text-on-error-container
+                             bg-error-container rounded-xl px-4 py-3"></p>
+
+        <button id="submit" type="submit"
+                class="w-full min-h-[48px] flex items-center justify-center gap-2 bg-secondary text-white
+                       rounded-xl font-semibold shadow-sm hover:shadow-md active:scale-[0.98] transition
+                       disabled:opacity-60 disabled:active:scale-100">
+          <span id="submit-label">Sign in</span>
+        </button>
+      </form>
+
+      <!-- Demo accounts, so a judge can get in without being handed a password
+           verbally. Obviously this block goes when the app is not a demo. -->
+      <div class="mt-8 rounded-2xl border border-dashed border-outline-variant p-4">
+        <p class="text-label-sm font-bold text-on-surface-variant uppercase tracking-wide mb-3">
+          Demo accounts
+        </p>
+        <div class="space-y-2">
+          <button data-email="alex.rivera@vertex.example"
+                  class="demo w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl
+                         hover:bg-surface-container-low text-left transition">
+            <span class="min-w-0">
+              <span class="block text-body-md font-semibold text-on-surface truncate">Alex Rivera</span>
+              <span class="block text-label-md text-on-surface-variant truncate">Sustainability Officer · sees everything</span>
+            </span>
+            <span class="material-symbols-outlined text-on-surface-variant text-lg shrink-0">login</span>
+          </button>
+          <button data-email="priya.sharma@vertex.example"
+                  class="demo w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl
+                         hover:bg-surface-container-low text-left transition">
+            <span class="min-w-0">
+              <span class="block text-body-md font-semibold text-on-surface truncate">Priya Sharma</span>
+              <span class="block text-label-md text-on-surface-variant truncate">Manager, IT · approves challenge proof</span>
+            </span>
+            <span class="material-symbols-outlined text-on-surface-variant text-lg shrink-0">login</span>
+          </button>
+          <button data-email="aditi.rao@vertex.example"
+                  class="demo w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl
+                         hover:bg-surface-container-low text-left transition">
+            <span class="min-w-0">
+              <span class="block text-body-md font-semibold text-on-surface truncate">Aditi Rao</span>
+              <span class="block text-label-md text-on-surface-variant truncate">Employee, Manufacturing · submits proof</span>
+            </span>
+            <span class="material-symbols-outlined text-on-surface-variant text-lg shrink-0">login</span>
+          </button>
+        </div>
+        <p class="text-label-md text-on-surface-variant mt-3 pt-3 border-t border-outline-variant">
+          Password for all: <code class="font-mono font-bold text-on-surface">eco1234</code>
+        </p>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { api, $ } from '/assets/app.js';
+
+const form = $('#login-form');
+const errorBox = $('#error');
+const submit = $('#submit');
+
+const showError = (msg) => {
+  errorBox.innerHTML =
+    `<span class="material-symbols-outlined text-xl">error</span><span>${msg}</span>`;
+  errorBox.classList.remove('hidden');
+};
+
+// Show/hide the password. On a phone, typing a password blind into a tiny
+// keyboard is how people end up locked out.
+$('#toggle-pw').onclick = () => {
+  const pw = $('#password');
+  const icon = $('#toggle-pw').firstElementChild;
+  const hidden = pw.type === 'password';
+  pw.type = hidden ? 'text' : 'password';
+  icon.textContent = hidden ? 'visibility_off' : 'visibility';
+  $('#toggle-pw').setAttribute('aria-label', hidden ? 'Hide password' : 'Show password');
+};
+
+// One tap fills a demo account in.
+document.querySelectorAll('.demo').forEach((b) => {
+  b.onclick = () => {
+    $('#email').value = b.dataset.email;
+    $('#password').value = 'eco1234';
+    errorBox.classList.add('hidden');
+    $('#password').focus();
+  };
+});
+
+form.onsubmit = async (e) => {
+  e.preventDefault();
+  errorBox.classList.add('hidden');
+
+  const email = $('#email').value.trim();
+  const password = $('#password').value;
+  if (!email || !password) {
+    showError('Enter both your email and password.');
+    return;
+  }
+
+  submit.disabled = true;
+  $('#submit-label').textContent = 'Signing in…';
+
+  try {
+    await api.post('/api/auth/login', { email, password });
+    // The session cookie is set by the server; go where they were headed.
+    const next = new URLSearchParams(location.search).get('next');
+    location.href = next && next.startsWith('/') ? next : '/';
+  } catch (err) {
+    showError(err.message);
+    submit.disabled = false;
+    $('#submit-label').textContent = 'Sign in';
+    $('#password').select();
+  }
+};
+</script>
+</body>
+</html>
