@@ -55,7 +55,7 @@
   <div class="flex items-center justify-center p-6 lg:p-12">
     <div class="w-full max-w-sm">
 
-      <div class="flex lg:hidden items-center gap-3 mb-10">
+      <div class="flex lg:hidden items-center gap-3 mb-8">
         <div class="w-11 h-11 bg-primary-container rounded-xl flex items-center justify-center">
           <span class="material-symbols-outlined icon-filled text-on-primary-container">eco</span>
         </div>
@@ -65,10 +65,18 @@
         </div>
       </div>
 
+      <!-- Back to sign-in. A real <a>, so it works even if the page's module
+           never loads (a cold start) -- unlike a JS history.back(). -->
+      <a href="/login"
+         class="inline-flex items-center gap-1.5 -ml-1 mb-5 text-label-md font-semibold
+                text-on-surface-variant hover:text-secondary transition-colors">
+        <span class="material-symbols-outlined text-lg">arrow_back</span>
+        Back to sign in
+      </a>
+
       <h2 class="text-headline-md text-on-surface">Create your account</h2>
       <p class="text-body-md text-on-surface-variant mt-1 mb-8">
-        Already have one?
-        <a href="/login" class="text-secondary font-semibold hover:underline">Sign in</a>
+        Join your organisation's ESG programme.
       </p>
 
       <!-- Same protections as the login form: see the classic script below. -->
