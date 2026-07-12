@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>EcoSphere Auto-Pilot | Settings</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+<script src="/assets/theme.js"></script>
+<link rel="stylesheet" href="/assets/styles.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+</head>
+<body class="bg-background text-on-surface font-sans">
+
+<main class="lg:ml-[280px] pt-16 pb-24 lg:pb-10 px-margin-mobile lg:px-margin-desktop">
+  <div class="max-w-container-max mx-auto py-6 space-y-6">
+
+    <!-- ESG score weights: the rule that drives every score on the platform -->
+    <section class="card p-6 lg:p-8">
+      <div class="flex items-start gap-4 mb-6">
+        <div class="w-10 h-10 shrink-0 bg-secondary-container rounded-2xl flex items-center justify-center">
+          <span class="material-symbols-outlined icon-filled text-on-secondary-container">balance</span>
+        </div>
+        <div class="min-w-0">
+          <h3 class="text-title-lg text-on-surface">ESG Score Weights</h3>
+          <p class="text-body-md text-on-surface-variant">
+            How the three pillars combine into the overall score. Must total exactly 100.
+          </p>
+        </div>
+      </div>
+      <div id="weights"><div class="skeleton h-40 w-full"></div></div>
+    </section>
+
+    <!-- AI thresholds + organisation -->
+    <section class="grid grid-cols-1 lg:grid-cols-2 gap-gutter">
+      <div class="card p-6 lg:p-8">
+        <div class="flex items-start gap-4 mb-6">
+          <div class="w-10 h-10 shrink-0 bg-green-100 rounded-2xl flex items-center justify-center">
+            <span class="material-symbols-outlined icon-filled text-green-600">auto_awesome</span>
+          </div>
+          <div class="min-w-0">
+            <h3 class="text-title-lg text-on-surface">AI Automation Thresholds</h3>
+            <p class="text-body-md text-on-surface-variant">Confidence the AI must reach before it acts without a human.</p>
+          </div>
+        </div>
+        <div id="thresholds"><div class="skeleton h-32 w-full"></div></div>
+      </div>
+
+      <div class="card p-6 lg:p-8">
+        <div class="flex items-start gap-4 mb-6">
+          <div class="w-10 h-10 shrink-0 bg-blue-100 rounded-2xl flex items-center justify-center">
+            <span class="material-symbols-outlined icon-filled text-blue-600">apartment</span>
+          </div>
+          <div class="min-w-0">
+            <h3 class="text-title-lg text-on-surface">Organisation</h3>
+            <p class="text-body-md text-on-surface-variant">Reporting entity and the grid mix used for emissions.</p>
+          </div>
+        </div>
+        <div id="org"><div class="skeleton h-32 w-full"></div></div>
+      </div>
+    </section>
+
+    <!-- Departments -->
+    <section class="card p-6 lg:p-8">
+      <div class="flex items-start justify-between gap-4 mb-6">
+        <div class="min-w-0">
+          <h3 class="text-title-lg text-on-surface">Organisation Departments</h3>
+          <p class="text-body-md text-on-surface-variant">Every transaction, proof and score is attributed to one of these.</p>
+        </div>
+        <span id="dept-count" class="text-label-md text-on-surface-variant bg-surface-container px-2.5 py-1 rounded-full whitespace-nowrap"></span>
+      </div>
+      <div class="overflow-x-auto -mx-6 px-6 lg:mx-0 lg:px-0">
+        <div id="departments"></div>
+      </div>
+    </section>
+
+    <!-- Emission factors: master data behind the OCR pipeline -->
+    <section class="card p-6 lg:p-8">
+      <div class="flex items-start justify-between gap-4 mb-6">
+        <div class="min-w-0">
+          <h3 class="text-title-lg text-on-surface">Emission Factors</h3>
+          <p class="text-body-md text-on-surface-variant">
+            Master data powering the OCR pipeline — a scanned bill's units are multiplied by these to produce kgCO₂e.
+          </p>
+        </div>
+        <span class="text-label-sm font-bold text-on-surface-variant bg-surface-container px-2.5 py-1 rounded-full whitespace-nowrap">Read-only</span>
+      </div>
+      <div class="overflow-x-auto -mx-6 px-6 lg:mx-0 lg:px-0">
+        <div id="factors"></div>
+      </div>
+    </section>
+
+    <!-- Audit trail -->
+    <section class="card p-6 lg:p-8">
+      <div class="flex items-start justify-between gap-4 mb-6">
+        <div class="min-w-0">
+          <h3 class="text-title-lg text-on-surface">Audit Trail</h3>
+          <p class="text-body-md text-on-surface-variant">
+            Append-only. Entries are never edited or deleted — this is the evidence chain behind every score.
+          </p>
+        </div>
+        <span class="text-label-sm font-bold text-on-secondary-container bg-secondary-container px-2.5 py-1 rounded-full whitespace-nowrap">Append-only</span>
+      </div>
+      <div id="audit" class="space-y-4"></div>
+    </section>
+
+  </div>
+</main>
+
+<script type="module">
+import { api, page, fmt, emptyState, esc, html, render, $, $$, toast, skeletonRows } from '/assets/app.js';
+
+page('settings', {
+  title: 'Settings',
+  subtitle: 'ESG configuration, master data and audit trail',
+}, async () => {
+  const [d, audit] = await Promise.all([
+    api.get('/api/settings'),
+    api.get('/api/audit-log'),
+  ]);
+
+  const num = (v, fallback = 0) => (Number.isFinite(Number(v)) ? Number(v) : fallback);
+  const s = d.settings ?? {};
+
+  // Every input in this page is at least 44px tall and full-width on mobile.
+  const FIELD = 'w-full min-h-[44px] px-3.5 py-2.5 rounded-xl border border-outline-variant bg-surface-container-lowest ' +
+                'text-body-lg text-on-surface tabular-nums focus:outline-none focus:ring-2 focus:ring-secondary/40 focus:border-secondary';
+  const BTN   = 'w-full sm:w-auto min-h-[44px] px-6 rounded-full bg-secondary text-white text-label-md font-bold ' +
+                'shadow-sm hover:shadow-md active:scale-95 transition disabled:opacity-40 disabled:pointer-events-none';
+
+  // --- ESG score weights ---------------------------------------------------
+  // The server rejects any set of weights that doesn't total 100, so the UI
+  // mirrors that rule: the total is live, and Save is dead until it reads 100.
+  const WEIGHTS = [
+    { key: 'weight_environmental', label: 'Environmental', icon: 'eco',   color: 'text-green-600' },
+    { key: 'weight_social',        label: 'Social',        icon: 'group', color: 'text-blue-600' },
+    { key: 'weight_governance',    label: 'Governance',    icon: 'gavel', color: 'text-purple-600' },
+  ];
+
+  render('#weights', html`
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
+      ${WEIGHTS.map(w => html`
+        <div>
+          <label for="${w.key}" class="flex items-center gap-2 mb-2">
+            <span class="material-symbols-outlined ${w.color} text-lg">${w.icon}</span>
+            <span class="text-label-md text-on-surface-variant uppercase tracking-wide">${w.label}</span>
+          </label>
+          <div class="relative">
+            <input id="${w.key}" type="number" min="0" max="100" step="1" inputmode="numeric"
+                   class="weight ${FIELD} pr-9" value="${esc(num(s[w.key]))}">
+            <span class="absolute right-3.5 top-1/2 -translate-y-1/2 text-body-md text-on-surface-variant pointer-events-none">%</span>
+          </div>
+          <input type="range" min="0" max="100" step="1" aria-label="${w.label} weight"
+                 class="weight-range w-full mt-3 accent-secondary" data-for="${w.key}" value="${esc(num(s[w.key]))}">
+        </div>
+      `).join('')}
+    </div>
+
+    <div class="mt-6 pt-5 border-t border-outline-variant/60 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div class="flex items-center gap-2">
+        <span id="weight-icon" class="material-symbols-outlined"></span>
+        <p class="text-body-md text-on-surface-variant">
+          Total: <span id="weight-total" class="text-title-lg font-bold tabular-nums">—</span>
+          <span id="weight-hint" class="block sm:inline text-label-md"></span>
+        </p>
+      </div>
+      <button id="save-weights" class="${BTN}">Save weights</button>
+    </div>
+    <p class="mt-3 text-label-md text-on-surface-variant">
+      Saving re-weights every ESG score on the platform — dashboard, pillars and the department leaderboard all recompute.
+    </p>
+  `);
+
+  const weightInputs = $$('.weight');
+  const totalEl = $('#weight-total');
+  const hintEl  = $('#weight-hint');
+  const iconEl  = $('#weight-icon');
+  const saveBtn = $('#save-weights');
+
+  const readWeights = () =>
+    Object.fromEntries(weightInputs.map(i => [i.id, Math.max(0, Math.min(100, num(i.value)))]));
+
+  function syncTotal() {
+    const w = readWeights();
+    const total = Object.values(w).reduce((a, b) => a + b, 0);
+    const ok = total === 100;
+
+    totalEl.textContent = `${total}%`;
+    totalEl.className = `text-title-lg font-bold tabular-nums ${ok ? 'text-secondary' : 'text-error'}`;
+    iconEl.textContent = ok ? 'check_circle' : 'error';
+    iconEl.className = `material-symbols-outlined ${ok ? 'text-secondary' : 'text-error'}`;
+    hintEl.textContent = ok
+      ? ' — weights are valid'
+      : ` — must total 100 (${total > 100 ? `${total - 100} over` : `${100 - total} short`})`;
+    hintEl.className = `block sm:inline text-label-md ${ok ? 'text-secondary' : 'text-error'}`;
+    saveBtn.disabled = !ok;
+  }
+
+  // Number box and slider stay in lockstep, both recompute the running total.
+  weightInputs.forEach(input => {
+    input.addEventListener('input', () => {
+      const range = $(`.weight-range[data-for="${input.id}"]`);
+      if (range) range.value = String(num(input.value));
+      syncTotal();
+    });
+  });
+  $$('.weight-range').forEach(range => {
+    range.addEventListener('input', () => {
+      const input = $(`#${range.dataset.for}`);
+      if (input) input.value = range.value;
+      syncTotal();
+    });
+  });
+  syncTotal();
+
+  saveBtn.onclick = async () => {
+    const w = readWeights();
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving…';
+    try {
+      await api.put('/api/settings', { settings: w });
+      toast('Weights updated — ESG scores recalculated', 'success');
+    } catch (err) {
+      // Belt and braces: if a total ≠ 100 ever reaches the server, show its verdict.
+      toast(err.message, 'error');
+    } finally {
+      saveBtn.textContent = 'Save weights';
+      syncTotal();
+    }
+  };
+
+  // --- AI automation thresholds -------------------------------------------
+  // Stored as 0..1 decimals; a human thinks in percent, so the UI does too.
+  const THRESHOLDS = [
+    {
+      key: 'auto_approve_threshold',
+      label: 'Photo proof auto-approval',
+      help: 'Challenge photos the vision model scores above this are approved instantly; anything below is queued for a human.',
+      icon: 'verified',
+    },
+    {
+      key: 'ocr_auto_post_threshold',
+      label: 'Bill auto-posting',
+      help: 'Scanned utility bills read above this confidence are posted straight to the emissions ledger without review.',
+      icon: 'document_scanner',
+    },
+  ];
+
+  render('#thresholds', html`
+    <div class="space-y-6">
+      ${THRESHOLDS.map(t => {
+        const pct = Math.round(num(s[t.key]) * 100);
+        return html`
+          <div>
+            <div class="flex items-center justify-between gap-3 mb-1.5">
+              <label for="${t.key}" class="flex items-center gap-2 min-w-0">
+                <span class="material-symbols-outlined text-on-surface-variant text-lg shrink-0">${t.icon}</span>
+                <span class="text-body-md font-semibold text-on-surface truncate">${t.label}</span>
+              </label>
+              <output id="${t.key}-out" for="${t.key}"
+                      class="text-title-lg font-bold text-secondary tabular-nums shrink-0">${pct}%</output>
+            </div>
+            <p class="text-label-md text-on-surface-variant mb-3">${t.help}</p>
+            <input id="${t.key}" type="range" min="0" max="100" step="1" value="${pct}"
+                   class="threshold w-full h-11 accent-secondary" aria-label="${t.label} threshold">
+          </div>
+        `;
+      }).join('')}
+      <div class="pt-4 border-t border-outline-variant/60 flex justify-end">
+        <button id="save-thresholds" class="${BTN}">Save thresholds</button>
+      </div>
+    </div>
+  `);
+
+  $$('.threshold').forEach(r => {
+    r.addEventListener('input', () => { $(`#${r.id}-out`).textContent = `${r.value}%`; });
+  });
+
+  $('#save-thresholds').onclick = () => save('#save-thresholds', 'Save thresholds', {
+    auto_approve_threshold: num($('#auto_approve_threshold').value) / 100,
+    ocr_auto_post_threshold: num($('#ocr_auto_post_threshold').value) / 100,
+  }, 'Automation thresholds updated');
+
+  // --- Organisation --------------------------------------------------------
+  render('#org', html`
+    <div class="space-y-4">
+      <div>
+        <label for="org_name" class="block text-label-md text-on-surface-variant uppercase tracking-wide mb-1.5">Organisation name</label>
+        <input id="org_name" type="text" class="${FIELD}" value="${esc(s.org_name ?? '')}">
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label for="reporting_year" class="block text-label-md text-on-surface-variant uppercase tracking-wide mb-1.5">Reporting year</label>
+          <input id="reporting_year" type="text" inputmode="numeric" class="${FIELD}" value="${esc(s.reporting_year ?? '')}">
+        </div>
+        <div>
+          <label for="renewable_mix" class="block text-label-md text-on-surface-variant uppercase tracking-wide mb-1.5">Renewable mix (%)</label>
+          <input id="renewable_mix" type="number" min="0" max="100" step="1" inputmode="numeric"
+                 class="${FIELD}" value="${esc(num(s.renewable_mix))}">
+        </div>
+      </div>
+      <div class="pt-4 border-t border-outline-variant/60 flex justify-end">
+        <button id="save-org" class="${BTN}">Save organisation</button>
+      </div>
+    </div>
+  `);
+
+  $('#save-org').onclick = () => save('#save-org', 'Save organisation', {
+    org_name: $('#org_name').value.trim(),
+    reporting_year: $('#reporting_year').value.trim(),
+    renewable_mix: num($('#renewable_mix').value),
+  }, 'Organisation settings saved');
+
+  /** Shared save path for the non-weight cards: disable, PUT, toast either way. */
+  async function save(sel, label, settings, message) {
+    const btn = $(sel);
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+    try {
+      await api.put('/api/settings', { settings });
+      toast(message, 'success');
+    } catch (err) {
+      toast(err.message, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = label;
+    }
+  }
+
+  // --- Departments ---------------------------------------------------------
+  const TH = 'px-4 py-3 text-left text-label-sm text-on-surface-variant uppercase tracking-wide whitespace-nowrap';
+  const TD = 'px-4 py-3 text-body-md whitespace-nowrap';
+
+  $('#dept-count').textContent =
+    `${d.departments.length} department${d.departments.length === 1 ? '' : 's'}`;
+
+  render('#departments', d.departments.length ? html`
+    <table class="w-full border-collapse">
+      <thead class="bg-surface-container-low border-b border-outline-variant">
+        <tr>
+          <th class="${TH}">Department</th>
+          <th class="${TH}">Code</th>
+          <th class="${TH}">Head</th>
+          <th class="${TH} text-right">Employees</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-outline-variant/50">
+        ${d.departments.map(dep => html`
+          <tr class="hover:bg-surface-container-low/60 transition-colors">
+            <td class="${TD} font-semibold text-on-surface">${esc(dep.name)}</td>
+            <td class="${TD}">
+              <span class="px-2 py-0.5 rounded-full bg-surface-container text-label-sm font-bold text-on-surface-variant">${esc(dep.code)}</span>
+            </td>
+            <td class="${TD} text-on-surface-variant">${esc(dep.head)}</td>
+            <td class="${TD} text-right font-semibold tabular-nums">${fmt.n(dep.employee_count)}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  ` : emptyState('No departments configured', 'apartment'));
+
+  // --- Emission factors ----------------------------------------------------
+  const SCOPE = { 1: 'bg-green-100 text-green-700', 2: 'bg-blue-100 text-blue-700', 3: 'bg-purple-100 text-purple-700' };
+
+  render('#factors', d.emissionFactors.length ? html`
+    <table class="w-full border-collapse">
+      <thead class="bg-surface-container-low border-b border-outline-variant">
+        <tr>
+          <th class="${TH}">Category</th>
+          <th class="${TH}">Activity</th>
+          <th class="${TH}">Unit</th>
+          <th class="${TH} text-right">kgCO₂e / unit</th>
+          <th class="${TH}">Scope</th>
+          <th class="${TH}">Source</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-outline-variant/50">
+        ${d.emissionFactors.map(f => html`
+          <tr class="hover:bg-surface-container-low/60 transition-colors">
+            <td class="${TD} font-semibold text-on-surface">${esc(f.category)}</td>
+            <td class="${TD} text-on-surface-variant">${esc(f.activity)}</td>
+            <td class="${TD} text-on-surface-variant">${esc(f.unit)}</td>
+            <td class="${TD} text-right font-bold tabular-nums text-on-surface">${fmt.n(f.factor_kgco2e, 3)}</td>
+            <td class="${TD}">
+              <span class="px-2 py-0.5 rounded-full text-label-sm font-bold ${SCOPE[f.scope] ?? 'bg-surface-container text-on-surface-variant'}">
+                Scope ${esc(f.scope)}
+              </span>
+            </td>
+            <td class="${TD} text-on-surface-variant">${esc(f.source)}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  ` : emptyState('No emission factors loaded', 'table_chart'));
+
+  // --- Audit trail ---------------------------------------------------------
+  const entries = audit.slice(0, 20);
+  render('#audit', entries.length ? entries.map(a => html`
+    <div class="flex gap-3 items-start">
+      <div class="w-9 h-9 shrink-0 rounded-full bg-surface-container flex items-center justify-center">
+        <span class="material-symbols-outlined text-on-surface-variant text-lg">history</span>
+      </div>
+      <div class="min-w-0 flex-1">
+        <div class="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+          <span class="text-body-md font-semibold text-on-surface">${esc(a.actor)}</span>
+          <span class="text-label-md text-on-surface-variant">${esc(fmt.title(a.action))}</span>
+          <span class="text-label-sm text-on-surface-variant ml-auto whitespace-nowrap">${fmt.ago(a.created_at)}</span>
+        </div>
+        <p class="text-body-md text-on-surface-variant mt-0.5 break-words">${esc(a.detail || '—')}</p>
+      </div>
+    </div>
+  `).join('') : emptyState('Nothing has been recorded yet', 'history'));
+});
+</script>
+</body>
+</html>

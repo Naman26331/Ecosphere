@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>EcoSphere Auto-Pilot | Environmental</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+<script src="/assets/theme.js"></script>
+<link rel="stylesheet" href="/assets/styles.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+</head>
+<body class="bg-background text-on-surface font-sans">
+
+<main class="lg:ml-[280px] pt-16 pb-24 lg:pb-10 px-margin-mobile lg:px-margin-desktop">
+  <div class="max-w-container-max mx-auto py-6 space-y-6">
+
+    <!-- ================= AI OCR PIPELINE ================= -->
+    <section class="card overflow-hidden">
+      <div class="p-6 lg:p-8 border-b border-outline-variant bg-surface-container-low">
+        <div class="flex items-start gap-3">
+          <span class="material-symbols-outlined text-secondary text-3xl shrink-0">document_scanner</span>
+          <div class="min-w-0">
+            <h3 class="text-title-lg text-on-surface">Auto-Pilot: Scan a Utility Bill</h3>
+            <p class="text-body-md text-on-surface-variant mt-1">
+              Upload a bill or fuel receipt. The OCR engine reads the usage, matches it to an
+              emission factor, and posts the carbon transaction — no manual typing.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-2 gap-gutter">
+        <!-- Dropzone -->
+        <div>
+          <form id="scan-form" class="space-y-4">
+            <label id="dropzone"
+                   class="dropzone flex flex-col items-center justify-center gap-2 w-full min-h-[180px]
+                          border-2 border-dashed border-outline-variant rounded-2xl cursor-pointer
+                          hover:border-secondary hover:bg-surface-container-low p-6 text-center">
+              <span class="material-symbols-outlined text-4xl text-outline">upload_file</span>
+              <span id="drop-label" class="text-body-md font-semibold text-on-surface">
+                Tap to choose a bill, or drag one here
+              </span>
+              <span class="text-label-md text-on-surface-variant">PDF, JPG or PNG · max 12 MB</span>
+              <input id="file" name="document" type="file" class="hidden"
+                     accept="image/*,application/pdf,.txt">
+            </label>
+
+            <div class="grid grid-cols-2 gap-3">
+              <label class="block">
+                <span class="text-label-md text-on-surface-variant">Department</span>
+                <select id="dept" class="mt-1 w-full min-h-[44px] rounded-xl border-outline-variant
+                                         bg-surface-container-low text-body-md focus:ring-secondary focus:border-secondary"></select>
+              </label>
+              <label class="block">
+                <span class="text-label-md text-on-surface-variant">Logged by</span>
+                <select id="user" class="mt-1 w-full min-h-[44px] rounded-xl border-outline-variant
+                                         bg-surface-container-low text-body-md focus:ring-secondary focus:border-secondary"></select>
+              </label>
+            </div>
+
+            <button id="scan-btn" type="submit" disabled
+                    class="w-full min-h-[48px] flex items-center justify-center gap-2 bg-secondary text-white
+                           rounded-xl font-semibold shadow-sm hover:shadow-md active:scale-[0.98]
+                           transition disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100">
+              <span class="material-symbols-outlined">auto_awesome</span>
+              <span id="scan-btn-label">Scan &amp; Post to Ledger</span>
+            </button>
+
+            <p class="text-label-md text-on-surface-variant text-center">
+              No bill handy? <button type="button" id="sample-btn" class="text-secondary font-semibold hover:underline">Use a sample bill</button>
+            </p>
+          </form>
+        </div>
+
+        <!-- Extraction result: shows the pipeline's working, step by step -->
+        <div id="scan-result" class="rounded-2xl bg-surface-container-low border border-outline-variant
+                                     p-6 flex items-center justify-center min-h-[180px]">
+          <p class="text-body-md text-on-surface-variant text-center">
+            The extraction breakdown will appear here.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= SUMMARY ================= -->
+    <section id="env-summary" class="grid grid-cols-1 sm:grid-cols-3 gap-gutter"></section>
+
+    <!-- ================= TREND + BREAKDOWN ================= -->
+    <section class="grid grid-cols-1 lg:grid-cols-3 gap-gutter">
+      <div class="card p-6 lg:p-8 lg:col-span-2">
+        <h3 class="text-title-lg text-on-surface mb-1">Emissions Trend</h3>
+        <p class="text-body-md text-on-surface-variant mb-6">Verified emissions, tCO₂e per month</p>
+        <div id="env-trend"><div class="skeleton h-48 w-full"></div></div>
+      </div>
+
+      <div class="card p-6 lg:p-8">
+        <h3 class="text-title-lg text-on-surface mb-1">By GHG Scope</h3>
+        <p class="text-body-md text-on-surface-variant mb-6">Where the emissions sit</p>
+        <div id="env-scope" class="space-y-4"></div>
+
+        <h4 class="text-title-lg text-on-surface mt-8 mb-4">By Category</h4>
+        <div id="env-category" class="space-y-4"></div>
+      </div>
+    </section>
+
+    <!-- ================= GOALS ================= -->
+    <section class="card overflow-hidden">
+      <div class="px-6 lg:px-8 py-5 border-b border-outline-variant flex items-center justify-between gap-4">
+        <div>
+          <h3 class="text-title-lg text-on-surface">Environmental Goals</h3>
+          <p class="text-body-md text-on-surface-variant">Progress from baseline toward target</p>
+        </div>
+        <button id="new-goal-btn"
+                class="flex items-center gap-1.5 px-4 py-2.5 bg-secondary text-white rounded-xl
+                       text-label-md font-semibold shadow-sm active:scale-95 transition shrink-0">
+          <span class="material-symbols-outlined text-lg">add</span>
+          <span class="hidden sm:inline">New Goal</span>
+        </button>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left min-w-[720px]">
+          <thead class="bg-surface-container-high">
+            <tr>
+              <th class="px-6 py-3 text-label-sm text-on-surface-variant uppercase tracking-wider">Goal</th>
+              <th class="px-6 py-3 text-label-sm text-on-surface-variant uppercase tracking-wider">Department</th>
+              <th class="px-6 py-3 text-label-sm text-on-surface-variant uppercase tracking-wider text-right">Baseline</th>
+              <th class="px-6 py-3 text-label-sm text-on-surface-variant uppercase tracking-wider text-right">Current</th>
+              <th class="px-6 py-3 text-label-sm text-on-surface-variant uppercase tracking-wider text-right">Target</th>
+              <th class="px-6 py-3 text-label-sm text-on-surface-variant uppercase tracking-wider w-48">Progress</th>
+              <th class="px-6 py-3 text-label-sm text-on-surface-variant uppercase tracking-wider">Deadline</th>
+              <th class="px-6 py-3 text-label-sm text-on-surface-variant uppercase tracking-wider">Status</th>
+            </tr>
+          </thead>
+          <tbody id="goals-body" class="divide-y divide-outline-variant"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ================= LEDGER ================= -->
+    <section class="card overflow-hidden">
+      <div class="px-6 lg:px-8 py-5 border-b border-outline-variant">
+        <h3 class="text-title-lg text-on-surface">Carbon Transaction Ledger</h3>
+        <p class="text-body-md text-on-surface-variant">
+          Every row is quantity × emission factor. <span class="text-secondary font-semibold">OCR</span> rows were posted by the AI pipeline.
+        </p>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left min-w-[760px]">
+          <thead class="bg-surface-container-high">
+            <tr>
+              <th class="px-6 py-3 text-label-sm text-on-surface-variant uppercase tracking-wider">Date</th>
+              <th class="px-6 py-3 text-label-sm text-on-surface-variant uppercase tracking-wider">Activity</th>
+              <th class="px-6 py-3 text-label-sm text-on-surface-variant uppercase tracking-wider">Department</th>
+              <th class="px-6 py-3 text-label-sm text-on-surface-variant uppercase tracking-wider text-right">Quantity</th>
+              <th class="px-6 py-3 text-label-sm text-on-surface-variant uppercase tracking-wider text-right">CO₂e</th>
+              <th class="px-6 py-3 text-label-sm text-on-surface-variant uppercase tracking-wider">Source</th>
+              <th class="px-6 py-3 text-label-sm text-on-surface-variant uppercase tracking-wider">Status</th>
+            </tr>
+          </thead>
+          <tbody id="ledger-body" class="divide-y divide-outline-variant"></tbody>
+        </table>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<!-- New goal dialog -->
+<dialog id="goal-dialog" class="rounded-3xl p-0 w-[92vw] max-w-md backdrop:bg-on-surface/40">
+  <form id="goal-form" method="dialog" class="p-6 space-y-4">
+    <h3 class="text-title-lg text-on-surface">New Environmental Goal</h3>
+
+    <label class="block">
+      <span class="text-label-md text-on-surface-variant">Goal name</span>
+      <input name="name" required placeholder="e.g. Fleet electrification"
+             class="mt-1 w-full min-h-[44px] rounded-xl border-outline-variant bg-surface-container-low
+                    text-body-md focus:ring-secondary focus:border-secondary">
+    </label>
+
+    <label class="block">
+      <span class="text-label-md text-on-surface-variant">Department</span>
+      <select name="department_id" id="goal-dept"
+              class="mt-1 w-full min-h-[44px] rounded-xl border-outline-variant bg-surface-container-low
+                     text-body-md focus:ring-secondary focus:border-secondary"></select>
+    </label>
+
+    <div class="grid grid-cols-2 gap-3">
+      <label class="block">
+        <span class="text-label-md text-on-surface-variant">Baseline (tCO₂e)</span>
+        <input name="baseline_co2" type="number" step="0.1" required placeholder="1000"
+               class="mt-1 w-full min-h-[44px] rounded-xl border-outline-variant bg-surface-container-low
+                      text-body-md focus:ring-secondary focus:border-secondary">
+      </label>
+      <label class="block">
+        <span class="text-label-md text-on-surface-variant">Target (tCO₂e)</span>
+        <input name="target_co2" type="number" step="0.1" required placeholder="400"
+               class="mt-1 w-full min-h-[44px] rounded-xl border-outline-variant bg-surface-container-low
+                      text-body-md focus:ring-secondary focus:border-secondary">
+      </label>
+    </div>
+
+    <label class="block">
+      <span class="text-label-md text-on-surface-variant">Deadline</span>
+      <input name="deadline" type="date" required
+             class="mt-1 w-full min-h-[44px] rounded-xl border-outline-variant bg-surface-container-low
+                    text-body-md focus:ring-secondary focus:border-secondary">
+    </label>
+
+    <p class="text-label-md text-on-surface-variant">Target must be lower than the baseline.</p>
+
+    <div class="flex gap-3 pt-2">
+      <button type="button" id="goal-cancel"
+              class="flex-1 min-h-[44px] rounded-xl border border-outline-variant font-semibold
+                     text-on-surface hover:bg-surface-container-low">Cancel</button>
+      <button type="submit"
+              class="flex-1 min-h-[44px] rounded-xl bg-secondary text-white font-semibold
+                     shadow-sm active:scale-95 transition">Create Goal</button>
+    </div>
+  </form>
+</dialog>
+
+<script type="module">
+import { api, page, fmt, areaChart, barList, emptyState, esc, html, render, $,
+         chip, toast, scoreBg } from '/assets/app.js';
+
+page('environment', {
+  title: 'Environmental',
+  subtitle: 'Carbon ledger, emission factors and reduction goals',
+}, async () => {
+  // The upload form can't submit until it knows which departments exist.
+  const departments = await api.get('/api/departments');
+  const options = departments
+    .map((d) => `<option value="${d.id}">${esc(d.name)}</option>`)
+    .join('');
+
+  $('#dept').innerHTML = options;
+  $('#goal-dept').innerHTML = `<option value="">Organisation-wide</option>${options}`;
+  $('#user').innerHTML = `<option value="1">Alex Rivera</option>`;
+
+  await refresh();
+  wireScanner();
+  wireGoalDialog();
+});
+
+/** Repaint everything that a new transaction could have changed. */
+async function refresh() {
+  const [env, goals, ledger] = await Promise.all([
+    api.get('/api/environmental'),
+    api.get('/api/goals'),
+    api.get('/api/carbon-transactions?limit=25'),
+  ]);
+
+  // --- Summary ---
+  render('#env-summary', html`
+    <div class="card p-6">
+      <div class="flex items-start justify-between mb-4">
+        <span class="p-2 bg-green-50 text-green-600 rounded-xl material-symbols-outlined icon-filled">eco</span>
+        <span class="text-label-sm bg-secondary-container text-on-secondary-container px-2 py-1 rounded-full">
+          Score ${fmt.n(env.score, 1)}
+        </span>
+      </div>
+      <p class="text-label-md text-on-surface-variant uppercase tracking-wide">Goal Attainment</p>
+      <p class="text-display-lg text-primary leading-none mt-1">${fmt.n(env.kpis.goal_attainment, 0)}%</p>
+      <div class="w-full bg-surface-container h-2 rounded-full mt-4">
+        <div class="bar-fill h-full rounded-full bg-secondary" style="width:${env.kpis.goal_attainment}%"></div>
+      </div>
+    </div>
+
+    <div class="card p-6">
+      <div class="flex items-start justify-between mb-4">
+        <span class="p-2 bg-secondary-container text-on-secondary-container rounded-xl material-symbols-outlined">cloud_done</span>
+      </div>
+      <p class="text-label-md text-on-surface-variant uppercase tracking-wide">Avoided Emissions</p>
+      <p class="text-display-lg text-primary leading-none mt-1">${fmt.n(env.avoided.tco2e, 0)}
+        <span class="text-body-lg font-normal text-on-surface-variant">tCO₂e</span></p>
+      <p class="text-label-md text-on-surface-variant mt-4">
+        Equivalent to ${fmt.n(env.avoided.trees)} trees planted
+      </p>
+    </div>
+
+    <div class="card p-6">
+      <div class="flex items-start justify-between mb-4">
+        <span class="p-2 bg-amber-50 text-amber-600 rounded-xl material-symbols-outlined">bolt</span>
+      </div>
+      <p class="text-label-md text-on-surface-variant uppercase tracking-wide">Renewable Mix</p>
+      <p class="text-display-lg text-primary leading-none mt-1">${fmt.n(env.renewableMix, 0)}%</p>
+      <div class="w-full bg-surface-container h-2 rounded-full mt-4">
+        <div class="bar-fill h-full rounded-full bg-amber-500" style="width:${env.renewableMix}%"></div>
+      </div>
+    </div>
+  `);
+
+  // --- Trend ---
+  render('#env-trend', areaChart(
+    env.trend.map((t) => ({
+      label: new Date(`${t.month}-01`).toLocaleDateString('en-GB', { month: 'short' }),
+      value: t.tco2e,
+    })),
+    { id: 'env', height: 220 }
+  ));
+
+  // --- Scope / category ---
+  const SCOPE_COLOR = { 'Scope 1': 'bg-green-600', 'Scope 2': 'bg-blue-600', 'Scope 3': 'bg-purple-600' };
+  render('#env-scope', barList(
+    env.byScope.map((s) => ({ label: s.scope, value: s.tco2e, color: SCOPE_COLOR[s.scope] })),
+    { unit: ' t' }
+  ));
+  render('#env-category', barList(
+    env.byCategory.map((c) => ({ label: c.category, value: c.tco2e })),
+    { unit: ' t' }
+  ));
+
+  // --- Goals ---
+  render('#goals-body', goals.length ? goals.map((g) => html`
+    <tr class="hover:bg-surface-container-low transition-colors">
+      <td class="px-6 py-4">
+        <span class="text-body-md font-semibold text-primary">${esc(g.name)}</span>
+      </td>
+      <td class="px-6 py-4 text-body-md text-on-surface-variant">${esc(g.department ?? 'Organisation-wide')}</td>
+      <td class="px-6 py-4 text-body-md text-on-surface-variant text-right tabular-nums">${fmt.n(g.baseline_co2, 1)}</td>
+      <td class="px-6 py-4 text-body-md text-on-surface text-right tabular-nums">${fmt.n(g.current_co2, 1)}</td>
+      <td class="px-6 py-4 text-body-md text-on-surface-variant text-right tabular-nums">${fmt.n(g.target_co2, 1)}</td>
+      <td class="px-6 py-4">
+        <div class="flex items-center gap-2">
+          <div class="flex-1 h-2 bg-surface-container rounded-full overflow-hidden">
+            <div class="bar-fill h-full rounded-full ${scoreBg(g.progress)}" style="width:${g.progress}%"></div>
+          </div>
+          <span class="text-label-md font-bold tabular-nums w-10 text-right">${fmt.n(g.progress, 0)}%</span>
+        </div>
+      </td>
+      <td class="px-6 py-4 text-body-md text-on-surface-variant whitespace-nowrap">${fmt.date(g.deadline)}</td>
+      <td class="px-6 py-4">${chip(g.status)}</td>
+    </tr>
+  `).join('') : `<tr><td colspan="8">${emptyState('No goals yet — create one to start tracking.', 'flag')}</td></tr>`);
+
+  // --- Ledger ---
+  render('#ledger-body', ledger.map((t) => html`
+    <tr class="hover:bg-surface-container-low transition-colors">
+      <td class="px-6 py-4 text-body-md text-on-surface-variant whitespace-nowrap">${fmt.date(t.activity_date)}</td>
+      <td class="px-6 py-4">
+        <p class="text-body-md font-semibold text-on-surface">${esc(t.activity)}</p>
+        <p class="text-label-sm text-on-surface-variant">${esc(t.category)} · Scope ${t.scope}</p>
+      </td>
+      <td class="px-6 py-4 text-body-md text-on-surface-variant">${esc(t.department)}</td>
+      <td class="px-6 py-4 text-body-md text-on-surface text-right tabular-nums whitespace-nowrap">
+        ${fmt.n(t.quantity, 0)} <span class="text-on-surface-variant">${esc(t.unit)}</span>
+      </td>
+      <td class="px-6 py-4 text-body-md font-semibold text-on-surface text-right tabular-nums whitespace-nowrap">
+        ${fmt.n(t.co2e_kg, 1)} kg
+      </td>
+      <td class="px-6 py-4">
+        ${t.source === 'ocr'
+          ? html`<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-secondary-container
+                              text-on-secondary-container text-label-sm font-bold whitespace-nowrap">
+                   <span class="material-symbols-outlined text-sm">auto_awesome</span>
+                   OCR ${t.ai_confidence ? `${Math.round(t.ai_confidence * 100)}%` : ''}
+                 </span>`
+          : `<span class="text-label-md text-on-surface-variant">${esc(fmt.title(t.source))}</span>`}
+      </td>
+      <td class="px-6 py-4">${chip(t.status)}</td>
+    </tr>
+  `).join(''));
+}
+
+// ---------------------------------------------------------------------------
+// The OCR pipeline, on screen
+// ---------------------------------------------------------------------------
+
+function wireScanner() {
+  const input = $('#file');
+  const zone = $('#dropzone');
+  const btn = $('#scan-btn');
+  const label = $('#drop-label');
+
+  const setFile = (file) => {
+    if (!file) return;
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    input.files = dt.files;
+    label.textContent = file.name;
+    btn.disabled = false;
+  };
+
+  input.onchange = () => setFile(input.files[0]);
+
+  // Drag and drop, for the desktop demo.
+  ['dragenter', 'dragover'].forEach((e) =>
+    zone.addEventListener(e, (ev) => { ev.preventDefault(); zone.classList.add('is-dragging'); })
+  );
+  ['dragleave', 'drop'].forEach((e) =>
+    zone.addEventListener(e, (ev) => { ev.preventDefault(); zone.classList.remove('is-dragging'); })
+  );
+  zone.addEventListener('drop', (ev) => setFile(ev.dataTransfer.files[0]));
+
+  // A synthetic bill, so the pipeline can be demonstrated without hunting for a PDF.
+  $('#sample-btn').onclick = () => {
+    const bill = [
+      'TATA POWER LIMITED',
+      'Electricity Bill — Commercial Connection',
+      'Billing Period: 2026-06',
+      'Units Consumed: 1,842.50 kWh',
+      'Amount Payable: INR 18,900.00',
+    ].join('\n');
+    setFile(new File([bill], 'tata-power-june-bill.txt', { type: 'text/plain' }));
+    toast('Sample bill loaded — now hit Scan.', 'info');
+  };
+
+  $('#scan-form').onsubmit = async (e) => {
+    e.preventDefault();
+    if (!input.files[0]) return;
+
+    btn.disabled = true;
+    $('#scan-btn-label').textContent = 'Scanning…';
+    render('#scan-result', html`
+      <div class="w-full space-y-3">
+        <div class="skeleton h-4 w-2/3"></div>
+        <div class="skeleton h-4 w-full"></div>
+        <div class="skeleton h-4 w-1/2"></div>
+      </div>
+    `);
+
+    const body = new FormData();
+    body.append('document', input.files[0]);
+    body.append('department_id', $('#dept').value);
+    body.append('user_id', $('#user').value);
+
+    try {
+      const res = await api.upload('/api/ai/scan-bill', body);
+      showExtraction(res);
+      toast(res.message, res.status === 'verified' ? 'success' : 'info', 6000);
+
+      // The ledger, the goals and the score all move — repaint them.
+      await refresh();
+
+      input.value = '';
+      label.textContent = 'Tap to choose a bill, or drag one here';
+    } catch (err) {
+      render('#scan-result', html`
+        <div class="text-center">
+          <span class="material-symbols-outlined text-error text-3xl">error</span>
+          <p class="text-body-md text-on-error-container mt-2">${esc(err.message)}</p>
+        </div>
+      `);
+      toast(err.message, 'error');
+    } finally {
+      btn.disabled = true;
+      $('#scan-btn-label').textContent = 'Scan & Post to Ledger';
+    }
+  };
+}
+
+/** Show the arithmetic, not just the answer — this is what sells the pipeline. */
+function showExtraction(res) {
+  const x = res.extracted;
+  const verified = res.status === 'verified';
+
+  render('#scan-result', html`
+    <div class="w-full space-y-4">
+      <div class="flex items-center gap-2">
+        <span class="material-symbols-outlined ${verified ? 'text-secondary' : 'text-amber-600'}">
+          ${verified ? 'check_circle' : 'pending'}
+        </span>
+        <p class="text-body-md font-semibold text-on-surface">
+          ${verified ? 'Posted to the ledger' : 'Held for review'}
+        </p>
+        <span class="ml-auto text-label-sm px-2 py-1 rounded-full bg-surface-container-high text-on-surface-variant">
+          ${Math.round(x.confidence * 100)}% confident
+        </span>
+      </div>
+
+      <dl class="text-body-md divide-y divide-outline-variant/60 rounded-xl bg-white border border-outline-variant">
+        ${[
+          ['Vendor', esc(x.vendor)],
+          ['Activity', esc(x.activity)],
+          ['Quantity read', `${fmt.n(x.quantity, 1)} ${esc(x.unit)}`],
+          ['Billing period', esc(x.period ?? '—')],
+          ['Emission factor', `${res.factor.value} kg/${esc(res.factor.unit)}`],
+          ['Factor source', esc(res.factor.source)],
+        ].map(([k, v]) => html`
+          <div class="flex items-center justify-between gap-3 px-4 py-2.5">
+            <dt class="text-on-surface-variant">${k}</dt>
+            <dd class="font-semibold text-on-surface text-right">${v}</dd>
+          </div>
+        `).join('')}
+      </dl>
+
+      <!-- The whole point: quantity x factor = the transaction, computed for you -->
+      <div class="rounded-xl bg-primary text-white px-4 py-3">
+        <p class="text-label-sm uppercase tracking-wide text-white/70">Carbon transaction</p>
+        <p class="text-body-md mt-1">
+          ${fmt.n(x.quantity, 1)} ${esc(x.unit)} × ${res.factor.value}
+          = <span class="text-title-lg font-bold">${fmt.n(res.co2e_kg, 1)} kgCO₂e</span>
+        </p>
+      </div>
+
+      ${x.readFromDocument
+        ? ''
+        : html`<p class="text-label-md text-amber-700 bg-amber-50 rounded-lg px-3 py-2">
+                 No readable usage figure was found in the document, so this is an estimate — it needs review.
+               </p>`}
+    </div>
+  `);
+}
+
+// ---------------------------------------------------------------------------
+// New goal
+// ---------------------------------------------------------------------------
+
+function wireGoalDialog() {
+  const dialog = $('#goal-dialog');
+  $('#new-goal-btn').onclick = () => dialog.showModal();
+  $('#goal-cancel').onclick = () => dialog.close();
+
+  $('#goal-form').onsubmit = async (e) => {
+    e.preventDefault();
+    const f = Object.fromEntries(new FormData(e.target));
+
+    if (Number(f.target_co2) >= Number(f.baseline_co2)) {
+      toast('Target must be lower than the baseline.', 'error');
+      return;
+    }
+
+    try {
+      await api.post('/api/goals', {
+        name: f.name,
+        department_id: f.department_id || null,
+        baseline_co2: Number(f.baseline_co2),
+        target_co2: Number(f.target_co2),
+        current_co2: Number(f.baseline_co2), // a new goal starts at its baseline
+        deadline: f.deadline,
+      });
+      dialog.close();
+      e.target.reset();
+      toast('Goal created.', 'success');
+      await refresh();
+    } catch (err) {
+      toast(err.message, 'error');
+    }
+  };
+}
+</script>
+</body>
+</html>

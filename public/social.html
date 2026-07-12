@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>EcoSphere Auto-Pilot | Social</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+<script src="/assets/theme.js"></script>
+<link rel="stylesheet" href="/assets/styles.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+</head>
+<body class="bg-background text-on-surface font-sans">
+
+<main class="lg:ml-[280px] pt-16 pb-24 lg:pb-10 px-margin-mobile lg:px-margin-desktop">
+  <div class="max-w-container-max mx-auto py-6 space-y-6">
+
+    <!-- Summary -->
+    <section id="social-summary" class="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-gutter"></section>
+
+    <!-- ================= CHALLENGES ================= -->
+    <section>
+      <div class="flex items-end justify-between mb-4 gap-4">
+        <div>
+          <h3 class="text-title-lg text-on-surface">Sustainability Challenges</h3>
+          <p class="text-body-md text-on-surface-variant">
+            Submit a photo as proof — AI vision verifies it against the challenge category.
+          </p>
+        </div>
+      </div>
+      <div id="challenges" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-gutter"></div>
+    </section>
+
+    <!-- ================= APPROVAL QUEUE ================= -->
+    <section class="card overflow-hidden">
+      <div class="px-6 lg:px-8 py-5 border-b border-outline-variant flex items-center justify-between gap-4">
+        <div class="min-w-0">
+          <h3 class="text-title-lg text-on-surface">Employee Participation Approval</h3>
+          <p class="text-body-md text-on-surface-variant">
+            Anything the AI wasn't confident about lands here. A human always has the last word.
+          </p>
+        </div>
+        <span id="queue-count"
+              class="shrink-0 px-3 py-1.5 rounded-full bg-amber-100 text-amber-800 text-label-md font-bold"></span>
+      </div>
+      <div id="queue" class="divide-y divide-outline-variant"></div>
+    </section>
+
+    <!-- ================= RECENT DECISIONS ================= -->
+    <section class="card p-6 lg:p-8">
+      <h3 class="text-title-lg text-on-surface mb-1">Recently Reviewed</h3>
+      <p class="text-body-md text-on-surface-variant mb-6">Approved and rejected submissions</p>
+      <div id="reviewed" class="space-y-4"></div>
+    </section>
+
+  </div>
+</main>
+
+<!-- Proof submission dialog -->
+<dialog id="proof-dialog" class="rounded-3xl p-0 w-[92vw] max-w-md backdrop:bg-on-surface/40">
+  <form id="proof-form" class="p-6 space-y-4">
+    <div class="flex items-start gap-3">
+      <span id="proof-icon" class="material-symbols-outlined text-orange-500 text-3xl shrink-0">flag</span>
+      <div class="min-w-0">
+        <h3 id="proof-title" class="text-title-lg text-on-surface"></h3>
+        <p id="proof-desc" class="text-body-md text-on-surface-variant mt-0.5"></p>
+      </div>
+    </div>
+
+    <div class="rounded-xl bg-surface-container-low border border-outline-variant px-4 py-3">
+      <p class="text-label-md text-on-surface-variant">
+        AI vision will check your photo against
+        <span id="proof-category" class="font-bold text-on-surface"></span>.
+      </p>
+    </div>
+
+    <label class="block">
+      <span class="text-label-md text-on-surface-variant">Who is submitting</span>
+      <select id="proof-user"
+              class="mt-1 w-full min-h-[44px] rounded-xl border-outline-variant bg-surface-container-low
+                     text-body-md focus:ring-secondary focus:border-secondary"></select>
+    </label>
+
+    <!-- capture="environment" opens the camera directly on a phone -->
+    <label id="proof-drop"
+           class="dropzone flex flex-col items-center justify-center gap-2 w-full min-h-[150px]
+                  border-2 border-dashed border-outline-variant rounded-2xl cursor-pointer
+                  hover:border-orange-500 hover:bg-orange-50 p-6 text-center">
+      <span class="material-symbols-outlined text-4xl text-outline">add_a_photo</span>
+      <span id="proof-label" class="text-body-md font-semibold text-on-surface">Take or choose a photo</span>
+      <span class="text-label-md text-on-surface-variant">JPG or PNG</span>
+      <input id="proof-file" type="file" accept="image/*" capture="environment" class="hidden">
+    </label>
+
+    <img id="proof-preview" class="hidden w-full max-h-48 object-cover rounded-2xl border border-outline-variant" alt="Proof preview">
+
+    <div id="proof-result"></div>
+
+    <div class="flex gap-3 pt-1">
+      <button type="button" id="proof-cancel"
+              class="flex-1 min-h-[44px] rounded-xl border border-outline-variant font-semibold
+                     text-on-surface hover:bg-surface-container-low">Close</button>
+      <button type="submit" id="proof-submit" disabled
+              class="flex-1 min-h-[44px] rounded-xl bg-orange-500 text-white font-semibold shadow-sm
+                     active:scale-95 transition disabled:opacity-40 disabled:active:scale-100">
+        Verify with AI
+      </button>
+    </div>
+  </form>
+</dialog>
+
+<script type="module">
+import { api, page, fmt, esc, html, render, $, $$, chip, toast, emptyState,
+         scoreColor, scoreBg } from '/assets/app.js';
+
+page('social', {
+  title: 'Social Responsibility',
+  subtitle: 'Challenges, participation and AI-verified proof',
+}, async () => {
+  await refresh();
+  wireProofDialog();
+});
+
+async function refresh() {
+  const [social, challenges, pending, all] = await Promise.all([
+    api.get('/api/social'),
+    api.get('/api/challenges'),
+    api.get('/api/participations?status=pending'),
+    api.get('/api/participations'),
+  ]);
+
+  // --- Summary ---
+  const cards = [
+    { label: 'Social Score',       value: fmt.n(social.score, 1),                 sub: 'weighted 30%',      icon: 'group',        color: 'text-blue-600' },
+    { label: 'Participation',      value: `${fmt.n(social.kpis.participation_rate, 0)}%`, sub: 'of employees', icon: 'diversity_3', color: 'text-secondary' },
+    { label: 'AI Verified',        value: `${fmt.n(social.kpis.verification_rate, 0)}%`,  sub: 'of submissions', icon: 'verified',  color: 'text-green-600' },
+    { label: 'Awaiting Review',    value: social.pendingReviews,                  sub: 'submissions',       icon: 'hourglass_top', color: 'text-amber-600' },
+  ];
+  render('#social-summary', cards.map((c) => html`
+    <div class="card p-4 lg:p-6">
+      <span class="material-symbols-outlined ${c.color} mb-2">${c.icon}</span>
+      <p class="text-label-md text-on-surface-variant uppercase tracking-wide">${c.label}</p>
+      <p class="text-headline-md text-on-surface mt-1 leading-tight">${c.value}</p>
+      <p class="text-label-sm text-on-surface-variant mt-0.5">${c.sub}</p>
+    </div>
+  `).join(''));
+
+  // --- Challenge cards ---
+  render('#challenges', challenges.map((c) => {
+    const rate = c.submissions ? (c.approved / c.submissions) * 100 : 0;
+    return html`
+      <div class="card p-6 flex flex-col">
+        <div class="flex items-start justify-between mb-4">
+          <div class="w-12 h-12 bg-orange-50 rounded-2xl flex items-center justify-center">
+            <span class="material-symbols-outlined icon-filled text-orange-500">${esc(c.icon)}</span>
+          </div>
+          <span class="text-label-sm px-2.5 py-1 rounded-full bg-surface-container text-on-surface-variant">
+            ${esc(c.category)}
+          </span>
+        </div>
+
+        <h4 class="text-title-lg text-on-surface">${esc(c.title)}</h4>
+        <p class="text-body-md text-on-surface-variant mt-1 flex-1">${esc(c.description ?? '')}</p>
+
+        <div class="flex items-center gap-3 mt-4 text-label-md">
+          <span class="flex items-center gap-1 text-orange-600 font-bold">
+            <span class="material-symbols-outlined text-base">stars</span>${c.points} pts
+          </span>
+          <span class="flex items-center gap-1 text-secondary font-bold">
+            <span class="material-symbols-outlined text-base">bolt</span>${c.xp} XP
+          </span>
+        </div>
+
+        <div class="mt-4">
+          <div class="flex justify-between text-label-sm text-on-surface-variant mb-1.5">
+            <span>${c.approved ?? 0} approved of ${c.submissions ?? 0}</span>
+            <span>${fmt.n(rate, 0)}%</span>
+          </div>
+          <div class="h-2 bg-surface-container rounded-full overflow-hidden">
+            <div class="bar-fill h-full rounded-full bg-orange-500" style="width:${rate}%"></div>
+          </div>
+        </div>
+
+        <button data-challenge="${c.id}"
+                class="submit-proof mt-5 w-full min-h-[44px] rounded-xl bg-orange-500 text-white
+                       font-semibold shadow-sm active:scale-95 transition flex items-center justify-center gap-2">
+          <span class="material-symbols-outlined text-lg">add_a_photo</span>
+          Submit Proof
+        </button>
+      </div>
+    `;
+  }).join(''));
+
+  $$('.submit-proof').forEach((b) => {
+    b.onclick = () => openProof(challenges.find((c) => c.id === Number(b.dataset.challenge)));
+  });
+
+  // --- Approval queue ---
+  $('#queue-count').textContent = `${pending.length} pending`;
+  render('#queue', pending.length ? pending.map((p) => html`
+    <div class="p-4 lg:p-6 flex flex-col sm:flex-row sm:items-center gap-4">
+      <div class="w-10 h-10 shrink-0 rounded-full bg-surface-container flex items-center justify-center
+                  text-label-md font-bold text-on-surface-variant">
+        ${esc(initials(p.employee))}
+      </div>
+
+      <div class="flex-1 min-w-0">
+        <p class="text-body-md text-on-surface">
+          <span class="font-semibold">${esc(p.employee)}</span>
+          <span class="text-on-surface-variant"> · ${esc(p.department ?? '')}</span>
+        </p>
+        <p class="text-body-md text-on-surface-variant truncate">${esc(p.challenge)}</p>
+        <div class="flex flex-wrap items-center gap-2 mt-2">
+          <span class="text-label-sm px-2 py-1 rounded-full bg-surface-container text-on-surface-variant">
+            ${esc(p.category)}
+          </span>
+          ${confidenceChip(p.ai_confidence)}
+          <span class="text-label-sm text-on-surface-variant">${fmt.ago(p.submitted_at)}</span>
+        </div>
+        ${p.ai_reason
+          ? `<p class="text-label-md text-on-surface-variant mt-1.5 italic">“${esc(p.ai_reason)}”</p>`
+          : ''}
+      </div>
+
+      <div class="flex gap-2 shrink-0">
+        <button data-approve="${p.id}"
+                class="flex-1 sm:flex-none min-h-[44px] px-4 rounded-xl bg-secondary text-white
+                       font-semibold text-label-md active:scale-95 transition flex items-center justify-center gap-1">
+          <span class="material-symbols-outlined text-lg">check</span>Approve
+        </button>
+        <button data-reject="${p.id}"
+                class="flex-1 sm:flex-none min-h-[44px] px-4 rounded-xl border border-error text-error
+                       font-semibold text-label-md hover:bg-error-container active:scale-95 transition
+                       flex items-center justify-center gap-1">
+          <span class="material-symbols-outlined text-lg">close</span>Reject
+        </button>
+      </div>
+    </div>
+  `).join('') : `<div class="p-6">${emptyState('Nothing waiting — the AI cleared the queue.', 'task_alt')}</div>`);
+
+  $$('[data-approve]').forEach((b) => (b.onclick = () => review(b.dataset.approve, 'approve')));
+  $$('[data-reject]').forEach((b) => (b.onclick = () => review(b.dataset.reject, 'reject')));
+
+  // --- Recently reviewed ---
+  const done = all.filter((p) => p.status !== 'pending').slice(0, 8);
+  render('#reviewed', done.length ? done.map((p) => html`
+    <div class="flex items-center gap-3">
+      <span class="material-symbols-outlined ${p.status === 'approved' ? 'text-secondary' : 'text-error'}">
+        ${p.status === 'approved' ? 'check_circle' : 'cancel'}
+      </span>
+      <div class="flex-1 min-w-0">
+        <p class="text-body-md text-on-surface truncate">
+          <span class="font-semibold">${esc(p.employee)}</span> — ${esc(p.challenge)}
+        </p>
+        <p class="text-label-sm text-on-surface-variant">
+          ${p.points_awarded ? `${p.points_awarded} pts · ` : ''}${fmt.ago(p.submitted_at)}
+        </p>
+      </div>
+      ${chip(p.status)}
+    </div>
+  `).join('') : emptyState('No reviewed submissions yet.', 'history'));
+}
+
+const initials = (name) =>
+  (name ?? '?').split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase();
+
+/** Confidence is the whole story in the queue — colour it by how sure the AI was. */
+function confidenceChip(c) {
+  if (c == null) return '';
+  const pct = Math.round(c * 100);
+  const tone = c >= 0.85 ? 'bg-secondary-container text-on-secondary-container'
+             : c >= 0.6  ? 'bg-amber-100 text-amber-800'
+             :             'bg-error-container text-on-error-container';
+  return `<span class="text-label-sm px-2 py-1 rounded-full font-bold ${tone}">AI ${pct}%</span>`;
+}
+
+/** Manager decision. Approving mints points, XP and any badge crossed. */
+async function review(id, decision) {
+  try {
+    const res = await api.post(`/api/participations/${id}/review`, { decision });
+
+    if (decision === 'approve') {
+      toast(`Approved — ${res.pointsAwarded ?? 0} points and ${res.xpAwarded ?? 0} XP awarded.`, 'success');
+      for (const b of res.newBadges ?? []) {
+        toast(`Badge unlocked: ${b.name} (${b.tier})`, 'award', 6000);
+      }
+    } else {
+      toast('Submission rejected.', 'info');
+    }
+    await refresh(); // the social score moves — repaint it
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Proof submission + AI vision
+// ---------------------------------------------------------------------------
+
+let activeChallenge = null;
+
+async function openProof(challenge) {
+  activeChallenge = challenge;
+  const d = $('#proof-dialog');
+
+  $('#proof-title').textContent = challenge.title;
+  $('#proof-desc').textContent = challenge.description ?? '';
+  $('#proof-category').textContent = challenge.category;
+  $('#proof-icon').textContent = challenge.icon;
+
+  // Clear anything left from the previous submission.
+  $('#proof-file').value = '';
+  $('#proof-label').textContent = 'Take or choose a photo';
+  $('#proof-preview').classList.add('hidden');
+  $('#proof-result').innerHTML = '';
+  $('#proof-submit').disabled = true;
+  $('#proof-submit').textContent = 'Verify with AI';
+
+  // Only offer people who can actually submit for THIS challenge — one
+  // submission per person, so anyone who's already in is not on the list.
+  $('#proof-user').innerHTML = '<option>Loading…</option>';
+  d.showModal();
+
+  const eligible = await api.get(`/api/challenges/${challenge.id}/eligible`);
+  if (!eligible.length) {
+    $('#proof-user').innerHTML = '<option value="">Everyone has already submitted</option>';
+    $('#proof-submit').disabled = true;
+    return;
+  }
+  $('#proof-user').innerHTML = eligible
+    .map((e) => `<option value="${e.id}">${esc(e.name)} — ${esc(e.department ?? '')}</option>`)
+    .join('');
+}
+
+function wireProofDialog() {
+  const file = $('#proof-file');
+  const zone = $('#proof-drop');
+  const preview = $('#proof-preview');
+
+  $('#proof-cancel').onclick = () => $('#proof-dialog').close();
+
+  const setFile = (f) => {
+    if (!f) return;
+    const dt = new DataTransfer();
+    dt.items.add(f);
+    file.files = dt.files;
+    $('#proof-label').textContent = f.name;
+    preview.src = URL.createObjectURL(f);
+    preview.classList.remove('hidden');
+    $('#proof-submit').disabled = false;
+  };
+
+  file.onchange = () => setFile(file.files[0]);
+
+  ['dragenter', 'dragover'].forEach((e) =>
+    zone.addEventListener(e, (ev) => { ev.preventDefault(); zone.classList.add('is-dragging'); })
+  );
+  ['dragleave', 'drop'].forEach((e) =>
+    zone.addEventListener(e, (ev) => { ev.preventDefault(); zone.classList.remove('is-dragging'); })
+  );
+  zone.addEventListener('drop', (ev) => setFile(ev.dataTransfer.files[0]));
+
+  $('#proof-form').onsubmit = async (e) => {
+    e.preventDefault();
+    if (!file.files[0] || !activeChallenge) return;
+
+    const btn = $('#proof-submit');
+    btn.disabled = true;
+    btn.textContent = 'Verifying…';
+    render('#proof-result', '<div class="skeleton h-12 w-full"></div>');
+
+    const body = new FormData();
+    body.append('proof', file.files[0]);
+    body.append('user_id', $('#proof-user').value);
+
+    try {
+      const res = await api.upload(`/api/challenges/${activeChallenge.id}/submit`, body);
+      const v = res.verification;
+      const ok = res.autoApproved;
+
+      render('#proof-result', html`
+        <div class="rounded-xl px-4 py-3 ${ok ? 'bg-secondary-container' : v.match ? 'bg-amber-50' : 'bg-error-container'}">
+          <div class="flex items-center gap-2 mb-1">
+            <span class="material-symbols-outlined ${ok ? 'text-on-secondary-container' : v.match ? 'text-amber-700' : 'text-on-error-container'}">
+              ${ok ? 'verified' : v.match ? 'hourglass_top' : 'cancel'}
+            </span>
+            <span class="font-bold text-body-md ${ok ? 'text-on-secondary-container' : v.match ? 'text-amber-800' : 'text-on-error-container'}">
+              ${ok ? 'Auto-approved' : v.match ? 'Queued for review' : 'Rejected'}
+              · ${Math.round(v.confidence * 100)}% confident
+            </span>
+          </div>
+          <p class="text-body-md ${ok ? 'text-on-secondary-container' : v.match ? 'text-amber-900' : 'text-on-error-container'}">
+            ${esc(res.message)}
+          </p>
+        </div>
+      `);
+
+      toast(res.message, ok ? 'success' : v.match ? 'info' : 'error', 6000);
+      for (const b of res.award?.newBadges ?? []) {
+        toast(`Badge unlocked: ${b.name} (${b.tier})`, 'award', 6000);
+      }
+
+      btn.textContent = 'Submitted';
+      await refresh();
+    } catch (err) {
+      render('#proof-result', html`
+        <p class="rounded-xl bg-error-container text-on-error-container px-4 py-3 text-body-md">
+          ${esc(err.message)}
+        </p>
+      `);
+      btn.disabled = false;
+      btn.textContent = 'Verify with AI';
+    }
+  };
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>EcoSphere Auto-Pilot | Reports</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+<script src="/assets/theme.js"></script>
+<link rel="stylesheet" href="/assets/styles.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+</head>
+<body class="bg-background text-on-surface font-sans">
+
+<main class="lg:ml-[280px] pt-16 pb-24 lg:pb-10 px-margin-mobile lg:px-margin-desktop">
+  <div class="max-w-container-max mx-auto py-6 space-y-6">
+
+    <!-- ESG summary strip: the numbers every report is assembled from -->
+    <section class="grid grid-cols-1 lg:grid-cols-3 gap-gutter">
+      <div class="card p-6 lg:p-8 flex flex-col items-center justify-center text-center">
+        <h3 class="text-title-lg text-on-surface mb-1">Reporting Baseline</h3>
+        <p id="weights-note" class="text-label-md text-on-surface-variant mb-6">&nbsp;</p>
+        <div id="overall-gauge"></div>
+        <p id="score-caption" class="mt-6 text-body-md text-on-surface-variant"></p>
+      </div>
+      <div id="pillars" class="lg:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-gutter"></div>
+    </section>
+
+    <!-- Builder + the report it produces -->
+    <section class="grid grid-cols-1 lg:grid-cols-3 gap-gutter items-start">
+
+      <div class="card p-6 lg:p-8 bg-surface-container">
+        <div class="flex items-center gap-3 mb-1">
+          <span class="material-symbols-outlined text-blue-600">tune</span>
+          <h3 class="text-title-lg text-on-surface">Custom Report Builder</h3>
+        </div>
+        <p class="text-body-md text-on-surface-variant mb-6">
+          Every report is assembled from live ESG tables at the moment you generate it.
+        </p>
+
+        <form id="builder" class="flex flex-col gap-4" novalidate>
+          <div>
+            <label for="f-title" class="block text-label-md font-semibold text-on-surface-variant mb-1.5">Report title</label>
+            <input id="f-title" name="title" type="text" autocomplete="off"
+                   placeholder="e.g. Q3 Carbon Disclosure"
+                   class="w-full min-h-[44px] bg-white border border-outline-variant rounded-2xl px-4 py-2.5
+                          text-body-md text-on-surface placeholder:text-on-surface-variant/70
+                          focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20" />
+          </div>
+
+          <div>
+            <label for="f-type" class="block text-label-md font-semibold text-on-surface-variant mb-1.5">Report type</label>
+            <select id="f-type" name="type"
+                    class="w-full min-h-[44px] bg-white border border-outline-variant rounded-2xl px-4 py-2.5
+                           text-body-md text-on-surface focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20">
+              <option value="custom">Custom — all three pillars</option>
+              <option value="environmental">Environmental</option>
+              <option value="social">Social</option>
+              <option value="governance">Governance</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="f-framework" class="block text-label-md font-semibold text-on-surface-variant mb-1.5">Framework</label>
+            <select id="f-framework" name="framework"
+                    class="w-full min-h-[44px] bg-white border border-outline-variant rounded-2xl px-4 py-2.5
+                           text-body-md text-on-surface focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20">
+              <option value="GRI">GRI — Global Reporting Initiative</option>
+              <option value="BRSR">BRSR — Business Responsibility &amp; Sustainability</option>
+              <option value="TCFD">TCFD — Climate-related Disclosures</option>
+              <option value="SASB">SASB — Sustainability Accounting Standards</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="f-period" class="block text-label-md font-semibold text-on-surface-variant mb-1.5">Reporting period</label>
+            <input id="f-period" name="period" type="text" autocomplete="off" placeholder="e.g. Q3 2026"
+                   class="w-full min-h-[44px] bg-white border border-outline-variant rounded-2xl px-4 py-2.5
+                          text-body-md text-on-surface placeholder:text-on-surface-variant/70
+                          focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20" />
+          </div>
+
+          <div>
+            <label for="f-scope" class="block text-label-md font-semibold text-on-surface-variant mb-1.5">Scope</label>
+            <select id="f-scope" name="scope"
+                    class="w-full min-h-[44px] bg-white border border-outline-variant rounded-2xl px-4 py-2.5
+                           text-body-md text-on-surface focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20">
+              <option value="">Organisation-wide</option>
+            </select>
+          </div>
+
+          <button id="f-submit" type="submit"
+                  class="w-full min-h-[48px] mt-2 flex items-center justify-center gap-2 px-6 py-3
+                         bg-blue-600 text-white rounded-2xl text-body-md font-semibold
+                         shadow-sm hover:shadow-md active:scale-[0.98] transition
+                         disabled:opacity-60 disabled:pointer-events-none">
+            <span class="material-symbols-outlined text-xl">play_arrow</span>
+            <span>Generate Report</span>
+          </button>
+        </form>
+      </div>
+
+      <!-- Result panel: the generated report itself -->
+      <div id="snapshot" class="lg:col-span-2 card p-6 lg:p-8"></div>
+    </section>
+
+    <!-- Framework coverage -->
+    <section class="card p-6 lg:p-8">
+      <div class="flex items-start justify-between mb-6 gap-4">
+        <div>
+          <h3 class="text-title-lg text-on-surface">Framework Coverage</h3>
+          <p class="text-body-md text-on-surface-variant">Disclosure standards your filed reports map to</p>
+        </div>
+        <span id="coverage-count" class="text-label-md font-bold text-blue-600 whitespace-nowrap"></span>
+      </div>
+      <div id="coverage" class="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-gutter"></div>
+    </section>
+
+    <!-- Recent reports -->
+    <section class="card p-6 lg:p-8">
+      <div class="flex items-start justify-between mb-6 gap-4">
+        <div>
+          <h3 class="text-title-lg text-on-surface">Recent Reports</h3>
+          <p class="text-body-md text-on-surface-variant">Open any report to rebuild its snapshot</p>
+        </div>
+        <span id="report-count" class="text-label-md text-on-surface-variant whitespace-nowrap"></span>
+      </div>
+      <div id="reports" class="divide-y divide-outline-variant/60 -my-2">
+        <div class="skeleton h-4 w-full mb-3"></div>
+        <div class="skeleton h-4 w-full mb-3"></div>
+        <div class="skeleton h-4 w-full mb-3"></div>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<script type="module">
+import { api, page, fmt, gauge, drawGauges, areaChart, emptyState, esc, html, render,
+         $, $$, chip, scoreColor, scoreBg, toast } from '/assets/app.js';
+
+page('reports', {
+  title: 'Impact Reports',
+  subtitle: 'Framework-aligned ESG reporting',
+}, async () => {
+  const [d, reports, departments] = await Promise.all([
+    api.get('/api/dashboard'),
+    api.get('/api/reports'),
+    api.get('/api/departments'),
+  ]);
+
+  const FRAMEWORKS = ['GRI', 'BRSR', 'TCFD', 'SASB'];
+  const PILLARS = [
+    { key: 'environmental', label: 'Environmental', icon: 'eco',   color: 'green',  weight: d.weights.e },
+    { key: 'social',        label: 'Social',        icon: 'group', color: 'blue',   weight: d.weights.s },
+    { key: 'governance',    label: 'Governance',    icon: 'gavel', color: 'purple', weight: d.weights.g },
+  ];
+  const TYPE_ICON = {
+    environmental: ['eco',        'text-green-600',  'bg-green-100'],
+    social:        ['group',      'text-blue-600',   'bg-blue-100'],
+    governance:    ['gavel',      'text-purple-600', 'bg-purple-100'],
+    custom:        ['assessment', 'text-secondary',  'bg-secondary-container'],
+  };
+
+  // Reports are held client-side so a new one can be prepended without a reload.
+  let rows = [...reports];
+
+  // --- Reporting baseline ---------------------------------------------------
+  render('#overall-gauge', gauge(d.score));
+  $('#weights-note').textContent =
+    `${d.weights.e}% Environmental · ${d.weights.s}% Social · ${d.weights.g}% Governance`;
+  $('#score-caption').textContent =
+    `Live organisation score — every report is stamped against this baseline.`;
+
+  render('#pillars', PILLARS.map((p) => {
+    const pillar = d.pillars[p.key];
+    return html`
+      <div class="card p-6 flex flex-col">
+        <div class="flex items-start justify-between mb-5">
+          <div class="w-12 h-12 bg-${p.color}-50 rounded-2xl flex items-center justify-center">
+            <span class="material-symbols-outlined icon-filled text-${p.color}-600">${p.icon}</span>
+          </div>
+          <span class="text-label-sm text-on-surface-variant bg-surface-container px-2 py-1 rounded-full">${p.weight}%</span>
+        </div>
+        <p class="text-label-md text-on-surface-variant uppercase tracking-wide">${p.label}</p>
+        <p class="text-headline-lg ${scoreColor(pillar.score)} leading-tight">${fmt.n(pillar.score, 1)}</p>
+        <div class="mt-4 w-full bg-surface-container rounded-full h-2">
+          <div class="bar-fill h-2 rounded-full ${scoreBg(pillar.score)}" style="width:${pillar.score}%"></div>
+        </div>
+        <dl class="mt-5 pt-4 border-t border-outline-variant/50 space-y-2">
+          ${Object.entries(pillar.kpis).map(([k, v]) => html`
+            <div class="flex items-center justify-between gap-2">
+              <dt class="text-label-md text-on-surface-variant truncate">${esc(fmt.title(k))}</dt>
+              <dd class="text-label-md font-bold text-on-surface tabular-nums">${fmt.n(v, 0)}</dd>
+            </div>
+          `).join('')}
+        </dl>
+      </div>
+    `;
+  }).join(''));
+
+  // --- Scope options --------------------------------------------------------
+  $('#f-scope').insertAdjacentHTML('beforeend', departments.map((dep) => html`
+    <option value="${esc(dep.id)}">${esc(dep.name)} (${esc(dep.code)})</option>
+  `).join(''));
+
+  // --- Snapshot panel -------------------------------------------------------
+  // The proof a generated report has real content in it: scope, the score it
+  // was stamped with, each pillar's KPI breakdown, and the emissions series.
+
+  const kpiList = (kpis) => Object.entries(kpis ?? {}).map(([k, v]) => html`
+    <div>
+      <div class="flex items-baseline justify-between gap-2 mb-1">
+        <span class="text-label-md text-on-surface-variant truncate">${esc(fmt.title(k))}</span>
+        <span class="text-label-md font-bold text-on-surface tabular-nums shrink-0">${fmt.n(v, 1)}</span>
+      </div>
+      <div class="h-1.5 bg-surface-container rounded-full overflow-hidden">
+        <div class="bar-fill h-full rounded-full ${scoreBg(v)}" style="width:${Math.max(0, Math.min(100, v))}%"></div>
+      </div>
+    </div>
+  `).join('');
+
+  function renderSnapshot(meta, snap) {
+    // /api/reports/:id returns an organisation-wide snapshot without the
+    // emissions series; fall back to the live org-wide trend rather than
+    // inventing one.
+    const scope = snap.scope ?? 'Organisation-wide';
+    const series = (snap.emissions?.length ? snap.emissions : d.trend).map((t) => ({
+      label: new Date(`${t.month}-01`).toLocaleDateString('en-GB', { month: 'short' }),
+      value: t.tco2e,
+    }));
+    const total = series.reduce((a, p) => a + p.value, 0);
+
+    render('#snapshot', html`
+      <div class="flex flex-wrap items-start justify-between gap-4 pb-6 border-b border-outline-variant">
+        <div class="min-w-0">
+          <p class="text-label-sm font-bold text-blue-600 uppercase tracking-wide mb-1">Report Preview</p>
+          <h3 class="text-headline-md text-on-surface break-words">${esc(meta.title)}</h3>
+          <div class="flex flex-wrap items-center gap-2 mt-3">
+            ${chip(meta.type ?? 'custom')}
+            <span class="px-2.5 py-1 rounded-full text-label-sm font-bold bg-blue-100 text-blue-700 whitespace-nowrap">${esc(meta.framework ?? 'GRI')}</span>
+            <span class="text-label-md text-on-surface-variant">${esc(meta.period ?? 'Custom')}</span>
+          </div>
+        </div>
+        <div class="text-left sm:text-right shrink-0">
+          <p class="text-label-sm text-on-surface-variant uppercase tracking-wide">Overall</p>
+          <p class="text-display-lg ${scoreColor(snap.overall)} leading-none">${fmt.n(snap.overall, 1)}</p>
+        </div>
+      </div>
+
+      <dl class="grid grid-cols-2 sm:grid-cols-4 gap-4 py-6 border-b border-outline-variant">
+        <div class="min-w-0">
+          <dt class="text-label-sm text-on-surface-variant uppercase tracking-wide">Scope</dt>
+          <dd class="text-body-md font-semibold text-on-surface truncate">${esc(scope)}</dd>
+        </div>
+        <div class="min-w-0">
+          <dt class="text-label-sm text-on-surface-variant uppercase tracking-wide">Generated</dt>
+          <dd class="text-body-md font-semibold text-on-surface truncate">${fmt.date(snap.generated ?? meta.generated_at)}</dd>
+        </div>
+        <div class="min-w-0">
+          <dt class="text-label-sm text-on-surface-variant uppercase tracking-wide">Emissions</dt>
+          <dd class="text-body-md font-semibold text-on-surface truncate">${fmt.n(total, 1)} tCO₂e</dd>
+        </div>
+        <div class="min-w-0">
+          <dt class="text-label-sm text-on-surface-variant uppercase tracking-wide">Status</dt>
+          <dd class="text-body-md font-semibold text-on-surface truncate">${esc(fmt.title(meta.status ?? 'ready'))}</dd>
+        </div>
+      </dl>
+
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-gutter py-6 border-b border-outline-variant">
+        ${PILLARS.map((p) => {
+          const pillar = snap[p.key];
+          if (!pillar) return '';
+          return html`
+            <div class="rounded-2xl bg-surface-container-low p-4">
+              <div class="flex items-center gap-2 mb-3">
+                <span class="material-symbols-outlined icon-filled text-${p.color}-600 text-xl">${p.icon}</span>
+                <span class="text-label-md text-on-surface-variant uppercase tracking-wide">${p.label}</span>
+              </div>
+              <p class="text-headline-md ${scoreColor(pillar.score)} leading-tight mb-4">${fmt.n(pillar.score, 1)}</p>
+              <div class="space-y-3">${kpiList(pillar.kpis)}</div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+
+      <div class="pt-6">
+        <div class="flex items-start justify-between gap-4 mb-4">
+          <div>
+            <h4 class="text-title-lg text-on-surface">Emissions Series</h4>
+            <p class="text-body-md text-on-surface-variant">tCO₂e per month for this scope</p>
+          </div>
+          <span class="text-label-md font-bold text-blue-600 whitespace-nowrap">${series.length} months</span>
+        </div>
+        ${series.length ? areaChart(series, { id: 'snap', height: 180, color: '#2563eb' })
+                        : emptyState('No emissions recorded for this scope', 'show_chart')}
+      </div>
+    `);
+    drawGauges();
+  }
+
+  const snapshotPlaceholder = () => render('#snapshot', html`
+    <div class="flex flex-col items-center justify-center py-12 lg:py-20 text-center">
+      <span class="material-symbols-outlined text-5xl text-outline-variant mb-3">lab_profile</span>
+      <p class="text-title-lg text-on-surface">No report open</p>
+      <p class="text-body-md text-on-surface-variant max-w-sm mt-1">
+        Generate a report, or open one below, to see its scope, pillar scores, KPI breakdown
+        and emissions series.
+      </p>
+    </div>
+  `);
+  snapshotPlaceholder();
+
+  // --- Recent reports -------------------------------------------------------
+  function renderReports() {
+    $('#report-count').textContent = `${rows.length} filed`;
+
+    render('#reports', rows.length ? rows.map((rep) => {
+      const [icon, color, bg] = TYPE_ICON[rep.type] ?? TYPE_ICON.custom;
+      return html`
+        <div class="py-4 flex flex-wrap sm:flex-nowrap items-center gap-3 sm:gap-4">
+          <div class="w-10 h-10 shrink-0 rounded-full ${bg} flex items-center justify-center">
+            <span class="material-symbols-outlined ${color} text-xl">${icon}</span>
+          </div>
+          <div class="min-w-0 flex-1 order-last sm:order-none basis-full sm:basis-auto">
+            <p class="text-body-md font-semibold text-on-surface break-words">${esc(rep.title)}</p>
+            <div class="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1.5">
+              ${chip(rep.type)}
+              <span class="px-2 py-0.5 rounded-full text-label-sm font-bold bg-blue-100 text-blue-700">${esc(rep.framework)}</span>
+              <span class="text-label-md text-on-surface-variant">${esc(rep.period)}</span>
+            </div>
+            <p class="text-label-sm text-on-surface-variant mt-1.5">
+              ${fmt.date(rep.generated_at)} · ${esc(rep.author ?? 'System')}
+            </p>
+          </div>
+          <button data-view="${esc(rep.id)}"
+                  class="ml-auto shrink-0 min-h-[44px] flex items-center gap-1.5 px-4 py-2 rounded-full
+                         border border-outline-variant text-label-md font-bold text-blue-600
+                         hover:bg-blue-50 active:scale-95 transition">
+            <span class="material-symbols-outlined text-lg">visibility</span>
+            View
+          </button>
+        </div>
+      `;
+    }).join('') : emptyState('No reports generated yet', 'description'));
+
+    $$('#reports [data-view]').forEach((btn) => {
+      btn.onclick = async () => {
+        btn.disabled = true;
+        try {
+          const rep = await api.get(`/api/reports/${btn.dataset.view}`);
+          renderSnapshot(rep, rep.snapshot);
+          $('#snapshot').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } catch (err) {
+          toast(`Could not open report: ${err.message}`, 'error');
+        } finally {
+          btn.disabled = false;
+        }
+      };
+    });
+  }
+
+  // --- Framework coverage ---------------------------------------------------
+  function renderCoverage() {
+    const counts = Object.fromEntries(FRAMEWORKS.map((f) => [f, 0]));
+    for (const rep of rows) if (counts[rep.framework] != null) counts[rep.framework]++;
+    const covered = FRAMEWORKS.filter((f) => counts[f] > 0).length;
+    $('#coverage-count').textContent = `${covered} of ${FRAMEWORKS.length} covered`;
+
+    render('#coverage', FRAMEWORKS.map((f) => {
+      const n = counts[f];
+      const on = n > 0;
+      return html`
+        <div class="rounded-2xl border p-4 ${on ? 'border-blue-600/40 bg-blue-50' : 'border-dashed border-outline-variant bg-surface-container-low'}">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-title-lg ${on ? 'text-blue-700' : 'text-on-surface-variant'}">${f}</span>
+            <span class="material-symbols-outlined text-lg ${on ? 'icon-filled text-blue-600' : 'text-outline-variant'}">
+              ${on ? 'check_circle' : 'radio_button_unchecked'}
+            </span>
+          </div>
+          <p class="text-label-md ${on ? 'text-blue-700' : 'text-on-surface-variant'}">
+            ${on ? `${n} report${n === 1 ? '' : 's'}` : 'Not yet reported'}
+          </p>
+        </div>
+      `;
+    }).join(''));
+  }
+
+  renderReports();
+  renderCoverage();
+
+  // --- Generate -------------------------------------------------------------
+  $('#builder').onsubmit = async (e) => {
+    e.preventDefault();
+    const btn = $('#f-submit');
+    const title = $('#f-title').value.trim();
+    if (!title) {
+      toast('Give the report a title before generating it.', 'error');
+      $('#f-title').focus();
+      return;
+    }
+
+    const scope = $('#f-scope').value;
+    const body = {
+      title,
+      type: $('#f-type').value,
+      framework: $('#f-framework').value,
+      period: $('#f-period').value.trim() || 'Custom',
+    };
+    if (scope) body.department_id = Number(scope);
+
+    btn.disabled = true;
+    btn.innerHTML = html`<span class="material-symbols-outlined text-xl animate-spin">progress_activity</span><span>Generating…</span>`;
+
+    try {
+      const res = await api.post('/api/reports', body);
+
+      // Prepend to the list in place -- no reload.
+      rows = [{
+        id: res.id,
+        title: res.title,
+        type: body.type,
+        framework: body.framework,
+        period: body.period,
+        status: 'ready',
+        generated_at: res.snapshot?.generated ?? new Date().toISOString(),
+        author: 'Alex Rivera',
+      }, ...rows];
+      renderReports();
+      renderCoverage();
+
+      renderSnapshot({ ...rows[0] }, res.snapshot ?? {});
+      toast(`"${title}" generated — ${res.snapshot?.scope ?? 'Organisation-wide'}`);
+      $('#builder').reset();
+      $('#snapshot').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch (err) {
+      toast(`Could not generate report: ${err.message}`, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = html`<span class="material-symbols-outlined text-xl">play_arrow</span><span>Generate Report</span>`;
+    }
+  };
+
+  drawGauges();
+});
+</script>
+</body>
+</html>

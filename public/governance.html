@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>EcoSphere Auto-Pilot | Governance</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+<script src="/assets/theme.js"></script>
+<link rel="stylesheet" href="/assets/styles.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+</head>
+<body class="bg-background text-on-surface font-sans">
+
+<main class="lg:ml-[280px] pt-16 pb-24 lg:pb-10 px-margin-mobile lg:px-margin-desktop">
+  <div class="max-w-container-max mx-auto py-6 space-y-6">
+
+    <!-- Governance score + the KPIs that produce it -->
+    <section class="grid grid-cols-1 lg:grid-cols-3 gap-gutter">
+      <div class="card p-6 lg:p-8 flex flex-col items-center justify-center text-center">
+        <h3 class="text-title-lg text-on-surface mb-1">Governance Score</h3>
+        <p class="text-label-md text-on-surface-variant mb-6">Recomputed from live compliance data</p>
+        <div id="gov-gauge"><div class="skeleton h-48 w-48 rounded-full"></div></div>
+        <p id="gov-caption" class="mt-6 text-body-md text-on-surface-variant"></p>
+      </div>
+
+      <div class="card p-6 lg:p-8 lg:col-span-2 flex flex-col">
+        <div class="flex items-center gap-3 mb-6">
+          <div class="w-10 h-10 bg-purple-100 rounded-2xl flex items-center justify-center shrink-0">
+            <span class="material-symbols-outlined icon-filled text-purple-600">gavel</span>
+          </div>
+          <div class="min-w-0">
+            <h3 class="text-title-lg text-on-surface">Audit-Readiness KPIs</h3>
+            <p class="text-body-md text-on-surface-variant">The three inputs behind the score</p>
+          </div>
+        </div>
+        <div id="kpis" class="space-y-6 flex-1 flex flex-col justify-center"></div>
+      </div>
+    </section>
+
+    <!-- Counts -->
+    <section id="counts" class="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-gutter"></section>
+
+    <!-- Compliance issues -->
+    <section class="card p-6 lg:p-8">
+      <div class="flex items-start justify-between mb-6 gap-4 flex-wrap">
+        <div class="min-w-0">
+          <h3 class="text-title-lg text-on-surface">Compliance Issues</h3>
+          <p class="text-body-md text-on-surface-variant">Change a status and the score above updates instantly</p>
+        </div>
+        <button id="ask-overdue"
+                class="flex items-center gap-2 px-4 py-2 rounded-full bg-purple-600 text-white
+                       text-label-md font-semibold shadow-sm hover:shadow-md active:scale-95 transition whitespace-nowrap">
+          <span class="material-symbols-outlined text-lg">auto_awesome</span>
+          Ask AI about overdue
+        </button>
+      </div>
+      <div class="overflow-x-auto -mx-6 px-6 lg:-mx-8 lg:px-8">
+        <table class="w-full text-left border-separate border-spacing-0">
+          <thead>
+            <tr class="text-label-sm uppercase tracking-wide text-on-surface-variant">
+              <th class="py-3 pr-4 font-bold">Issue</th>
+              <th class="py-3 pr-4 font-bold">Department</th>
+              <th class="py-3 pr-4 font-bold">Severity</th>
+              <th class="py-3 pr-4 font-bold">Status</th>
+              <th class="py-3 pr-4 font-bold">Due</th>
+              <th class="py-3 pr-4 font-bold">Owner</th>
+              <th class="py-3 font-bold">Action</th>
+            </tr>
+          </thead>
+          <tbody id="issues" class="align-middle"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Frameworks + policies -->
+    <section class="grid grid-cols-1 lg:grid-cols-2 gap-gutter">
+      <div class="card p-6 lg:p-8">
+        <h3 class="text-title-lg text-on-surface mb-1">Issues by Framework</h3>
+        <p class="text-body-md text-on-surface-variant mb-6">Resolved vs. total raised</p>
+        <div id="frameworks" class="space-y-5"></div>
+      </div>
+
+      <div class="card p-6 lg:p-8">
+        <h3 class="text-title-lg text-on-surface mb-1">Policy Register</h3>
+        <p class="text-body-md text-on-surface-variant mb-6">Coverage across reporting frameworks</p>
+        <div id="policies" class="space-y-3"></div>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<script type="module">
+import { api, page, fmt, gauge, drawGauges, barList, emptyState, esc, html, render, $, $$,
+         chip, scoreColor, scoreBg, toast, openChat, skeletonRows } from '/assets/app.js';
+
+page('governance', {
+  title: 'Governance & Compliance',
+  subtitle: 'Policy coverage, compliance issues and audit readiness',
+}, async () => {
+
+  const KPI_META = {
+    resolution_rate:  { label: 'Resolution Rate',  hint: 'Issues closed out of all raised', icon: 'task_alt' },
+    timeliness:       { label: 'Timeliness',       hint: 'Closed on or before the due date', icon: 'schedule' },
+    policy_coverage:  { label: 'Policy Coverage',  hint: 'Frameworks with an active policy',  icon: 'policy' },
+  };
+
+  const SEVERITY_ORDER = { critical: 0, high: 1, medium: 2, low: 3 };
+
+  async function paint() {
+    const [g, issues] = await Promise.all([
+      api.get('/api/governance'),
+      api.get('/api/compliance-issues'),
+    ]);
+
+    // --- Score ---------------------------------------------------------------
+    render('#gov-gauge', gauge(g.score));
+    const open = g.counts.open ?? 0;
+    $('#gov-caption').innerHTML = open
+      ? html`<span class="font-semibold text-on-surface">${fmt.n(open)}</span> issue${open === 1 ? '' : 's'} still open —
+             resolving them lifts this score`
+      : '<span class="font-semibold text-green-600">Everything is closed out.</span>';
+
+    // --- KPIs ----------------------------------------------------------------
+    render('#kpis', Object.entries(g.kpis).map(([key, value]) => {
+      const meta = KPI_META[key] ?? { label: fmt.title(key), hint: '', icon: 'insights' };
+      const v = Number(value) || 0;
+      return html`
+        <div>
+          <div class="flex items-center justify-between gap-3 mb-2">
+            <span class="flex items-center gap-2 min-w-0">
+              <span class="material-symbols-outlined text-purple-600 text-xl shrink-0">${meta.icon}</span>
+              <span class="min-w-0">
+                <span class="block text-body-md font-semibold text-on-surface truncate">${esc(meta.label)}</span>
+                <span class="block text-label-sm text-on-surface-variant truncate">${esc(meta.hint)}</span>
+              </span>
+            </span>
+            <span class="text-title-lg font-bold tabular-nums shrink-0 ${scoreColor(v)}">${fmt.pct(v, 0)}</span>
+          </div>
+          <div class="h-2.5 bg-surface-container rounded-full overflow-hidden">
+            <div class="bar-fill h-full rounded-full ${scoreBg(v)}" style="width:${Math.max(0, Math.min(100, v))}%"></div>
+          </div>
+        </div>
+      `;
+    }).join(''));
+
+    // --- Counts --------------------------------------------------------------
+    const overdue = g.counts.overdue ?? 0;
+    const CARDS = [
+      { label: 'Total Issues', value: g.counts.total,    icon: 'gavel',        color: 'text-purple-600', unit: 'tracked' },
+      { label: 'Resolved',     value: g.counts.resolved, icon: 'check_circle', color: 'text-green-600',  unit: 'closed out' },
+      { label: 'Open',         value: open,              icon: 'pending',      color: 'text-amber-600',  unit: 'in flight' },
+      {
+        label: 'Overdue', value: overdue, icon: 'warning', unit: overdue > 0 ? 'needs action now' : 'all on time',
+        color: overdue > 0 ? 'text-error' : 'text-on-surface-variant',
+        alarm: overdue > 0,
+      },
+    ];
+    render('#counts', CARDS.map(c => html`
+      <div class="card p-4 lg:p-6 ${c.alarm ? 'border-error bg-error-container/40' : ''}">
+        <span class="material-symbols-outlined ${c.color} mb-2 lg:mb-3">${c.icon}</span>
+        <p class="text-label-md text-on-surface-variant uppercase tracking-wide">${c.label}</p>
+        <p class="text-headline-md mt-1 leading-tight ${c.alarm ? 'text-error' : 'text-on-surface'}">${fmt.n(c.value)}</p>
+        <p class="text-label-sm ${c.alarm ? 'text-error font-semibold' : 'text-on-surface-variant'} mt-0.5">${c.unit}</p>
+      </div>
+    `).join(''));
+
+    // --- Issues table --------------------------------------------------------
+    const rows = [...issues].sort((a, b) =>
+      (b.is_overdue ? 1 : 0) - (a.is_overdue ? 1 : 0) ||
+      (SEVERITY_ORDER[a.severity] ?? 9) - (SEVERITY_ORDER[b.severity] ?? 9) ||
+      String(a.due_date).localeCompare(String(b.due_date))
+    );
+
+    render('#issues', rows.length ? rows.map(i => {
+      const late = !!i.is_overdue;
+      return html`
+        <tr class="border-t border-outline-variant/60 ${late ? 'bg-error-container/25' : 'hover:bg-surface-container-low'} transition-colors">
+          <td class="py-4 pr-4 border-l-4 ${late ? 'border-error' : 'border-transparent'} pl-3">
+            <p class="text-body-md font-semibold text-on-surface min-w-[180px]">${esc(i.title)}</p>
+            <p class="text-label-sm text-on-surface-variant mt-0.5">${esc(i.framework)} · #${esc(i.id)}</p>
+          </td>
+          <td class="py-4 pr-4 text-body-md text-on-surface-variant whitespace-nowrap">${esc(i.department)}</td>
+          <td class="py-4 pr-4">${chip(i.severity)}</td>
+          <td class="py-4 pr-4">${chip(i.status)}</td>
+          <td class="py-4 pr-4 text-body-md whitespace-nowrap ${late ? 'text-error font-semibold' : 'text-on-surface-variant'}">
+            ${fmt.date(i.due_date)}
+            ${late ? '<span class="block text-label-sm font-bold uppercase">Overdue</span>' : ''}
+          </td>
+          <td class="py-4 pr-4 text-body-md text-on-surface-variant whitespace-nowrap">${esc(i.owner)}</td>
+          <td class="py-4">
+            <select data-issue="${esc(i.id)}"
+                    class="issue-status text-label-md rounded-full border border-outline-variant bg-surface-container-lowest
+                           py-1.5 pl-3 pr-8 text-on-surface focus:ring-2 focus:ring-purple-500/30 focus:border-purple-600">
+              ${['open', 'in_progress', 'resolved'].map(s => html`
+                <option value="${s}" ${s === i.status ? 'selected' : ''}>${fmt.title(s)}</option>
+              `).join('')}
+            </select>
+          </td>
+        </tr>
+      `;
+    }).join('') : `<tr><td colspan="7">${emptyState('No compliance issues on record', 'verified')}</td></tr>`);
+
+    // A status change is the demo moment: PATCH, then re-fetch so the gauge,
+    // the KPIs and the counts all move together.
+    $$('.issue-status').forEach(sel => {
+      sel.onchange = async () => {
+        const id = sel.dataset.issue;
+        const status = sel.value;
+        sel.disabled = true;
+        try {
+          const updated = await api.patch(`/api/compliance-issues/${id}`, { status });
+          toast(`“${updated.title ?? 'Issue'}” marked ${fmt.title(status)}`);
+          await paint();
+        } catch (err) {
+          toast(`Could not update issue: ${err.message}`, 'error');
+          sel.disabled = false;
+        }
+      };
+    });
+
+    // --- Frameworks ----------------------------------------------------------
+    render('#frameworks', g.byFramework.length ? g.byFramework.map(f => {
+      const total = f.total || 0;
+      const pct = total ? (f.resolved / total) * 100 : 0;
+      return html`
+        <div>
+          <div class="flex items-center justify-between gap-3 mb-2">
+            <span class="flex items-center gap-2 min-w-0">
+              <span class="px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 text-label-sm font-bold shrink-0">${esc(f.framework)}</span>
+              <span class="text-label-md text-on-surface-variant truncate">${fmt.n(f.resolved)} of ${fmt.n(total)} resolved</span>
+            </span>
+            <span class="text-body-md font-bold tabular-nums shrink-0 ${scoreColor(pct)}">${fmt.pct(pct, 0)}</span>
+          </div>
+          <div class="h-2.5 bg-surface-container rounded-full overflow-hidden">
+            <div class="bar-fill h-full rounded-full ${scoreBg(pct)}" style="width:${pct}%"></div>
+          </div>
+        </div>
+      `;
+    }).join('') : emptyState('No framework data yet', 'bar_chart'));
+
+    // --- Policies ------------------------------------------------------------
+    render('#policies', g.policies.length ? g.policies.map(p => html`
+      <div class="flex items-start gap-3 p-3 rounded-2xl border border-outline-variant/50 bg-surface-container-lowest">
+        <div class="w-9 h-9 shrink-0 rounded-full bg-purple-100 flex items-center justify-center">
+          <span class="material-symbols-outlined text-purple-600 text-xl">policy</span>
+        </div>
+        <div class="min-w-0 flex-1">
+          <div class="flex items-start justify-between gap-2">
+            <p class="text-body-md font-semibold text-on-surface break-words">${esc(p.name)}</p>
+            ${chip(p.status)}
+          </div>
+          <p class="text-label-md text-on-surface-variant mt-1">
+            ${esc(p.framework)} · v${esc(p.version)} · reviewed ${fmt.date(p.last_reviewed)}
+          </p>
+        </div>
+      </div>
+    `).join('') : emptyState('No policies registered', 'policy'));
+
+    drawGauges();
+  }
+
+  $('#ask-overdue').onclick = () => openChat('What are the overdue compliance issues?');
+
+  render('#issues', `<tr><td colspan="7" class="py-4">${skeletonRows(4, 'h-6')}</td></tr>`);
+  await paint();
+});
+</script>
+</body>
+</html>

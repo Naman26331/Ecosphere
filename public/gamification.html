@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>EcoSphere Auto-Pilot | Gamification</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+<script src="/assets/theme.js"></script>
+<link rel="stylesheet" href="/assets/styles.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+</head>
+<body class="bg-background text-on-surface font-sans">
+
+<main class="lg:ml-[280px] pt-16 pb-24 lg:pb-10 px-margin-mobile lg:px-margin-desktop">
+  <div class="max-w-container-max mx-auto py-6 space-y-6">
+
+    <!-- Headline stats -->
+    <section id="stats" class="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-gutter"></section>
+
+    <!-- The centrepiece: department leaderboard, plus the champion podium -->
+    <section class="grid grid-cols-1 lg:grid-cols-3 gap-gutter">
+      <div id="champion" class="card p-6 lg:p-8 flex flex-col justify-center overflow-hidden relative"></div>
+      <div class="card p-6 lg:p-8 lg:col-span-2">
+        <div class="flex items-start justify-between mb-6 gap-4">
+          <div>
+            <h3 class="text-title-lg text-on-surface">Department Leaderboard</h3>
+            <p class="text-body-md text-on-surface-variant">Recomputed on every verified transaction</p>
+          </div>
+          <span class="material-symbols-outlined icon-filled text-orange-500 shrink-0">leaderboard</span>
+        </div>
+        <div id="dept-board" class="space-y-5">
+          <div class="skeleton h-4 w-full mb-3"></div>
+          <div class="skeleton h-4 w-full mb-3"></div>
+          <div class="skeleton h-4 w-full mb-3"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Top employees -->
+    <section class="card p-6 lg:p-8">
+      <div class="flex items-start justify-between mb-6 gap-4">
+        <div>
+          <h3 class="text-title-lg text-on-surface">Top Employees</h3>
+          <p class="text-body-md text-on-surface-variant">Ranked by XP from approved challenge proof</p>
+        </div>
+        <span class="material-symbols-outlined icon-filled text-orange-500 shrink-0">workspace_premium</span>
+      </div>
+      <div id="employee-board" class="space-y-3"></div>
+    </section>
+
+    <!-- Open challenges -->
+    <section>
+      <div class="flex items-start justify-between mb-4 gap-4">
+        <div>
+          <h3 class="text-title-lg text-on-surface">Open Challenges</h3>
+          <p class="text-body-md text-on-surface-variant">Submit your proof on the Social page to earn XP</p>
+        </div>
+        <a href="/social" class="text-label-md font-bold text-orange-500 hover:underline whitespace-nowrap shrink-0">Submit proof →</a>
+      </div>
+      <div id="challenges" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-gutter"></div>
+    </section>
+
+    <!-- Badge gallery -->
+    <section class="card p-6 lg:p-8">
+      <div class="flex items-start justify-between mb-6 gap-4">
+        <div>
+          <h3 class="text-title-lg text-on-surface">Badge Gallery</h3>
+          <p class="text-body-md text-on-surface-variant">Awarded automatically the moment an XP threshold is crossed</p>
+        </div>
+        <span class="material-symbols-outlined icon-filled text-orange-500 shrink-0">military_tech</span>
+      </div>
+      <div id="badges" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4"></div>
+    </section>
+
+  </div>
+</main>
+
+<script type="module">
+import { api, page, fmt, esc, html, render, emptyState, scoreColor, scoreBg } from '/assets/app.js';
+
+// Tier -> the whole visual identity of a badge. Kept in one place so the ring,
+// the chip and the icon can never disagree about what "gold" looks like.
+const TIER = {
+  bronze:   { label: 'Bronze',   text: '#b45309', chip: 'bg-amber-100 text-amber-800',
+              grad: 'linear-gradient(135deg,#fcd9a5,#b45309)' },
+  silver:   { label: 'Silver',   text: '#64748b', chip: 'bg-slate-100 text-slate-600',
+              grad: 'linear-gradient(135deg,#cbd5e1,#64748b)' },
+  gold:     { label: 'Gold',     text: '#a16207', chip: 'bg-yellow-100 text-yellow-800',
+              grad: 'linear-gradient(135deg,#facc15,#a16207)' },
+  platinum: { label: 'Platinum', text: '#475569', chip: 'bg-slate-200 text-slate-700',
+              grad: 'linear-gradient(135deg,#e2e8f0,#64748b,#334155)' },
+};
+const tierOf = (t) => TIER[t] ?? TIER.bronze;
+
+// Medals are colour, not imagery -- 1st gold, 2nd silver, 3rd bronze.
+const MEDAL = [
+  'bg-yellow-400 text-yellow-950 ring-2 ring-yellow-200',
+  'bg-slate-300 text-slate-800',
+  'bg-amber-600 text-white',
+];
+const medalClass = (rank) => MEDAL[rank - 1] ?? 'bg-surface-container text-on-surface-variant';
+
+const initials = (name) =>
+  String(name ?? '?').trim().split(/\s+/).slice(0, 2).map((w) => w[0] ?? '').join('').toUpperCase() || '?';
+
+page('gamification', {
+  title: 'Gamification',
+  subtitle: 'Live leaderboards, challenges and badges',
+}, async () => {
+  const [board, badges, challenges] = await Promise.all([
+    api.get('/api/leaderboard'),
+    api.get('/api/badges'),
+    api.get('/api/challenges'),
+  ]);
+  const departments = board.departments ?? [];
+  const employees = board.employees ?? [];
+
+  // --- Headline stats ------------------------------------------------------
+  const totalXp = employees.reduce((s, e) => s + (e.xp ?? 0), 0);
+  const totalApproved = challenges.reduce((s, c) => s + (c.approved ?? 0), 0);
+  const badgesHeld = badges.reduce((s, b) => s + (b.holders ?? 0), 0);
+
+  const stats = [
+    { label: 'Open Challenges', value: fmt.n(challenges.filter((c) => c.status === 'open').length), unit: 'accepting proof', icon: 'rocket_launch' },
+    { label: 'Proofs Approved', value: fmt.n(totalApproved),  unit: 'verified submissions',    icon: 'verified' },
+    { label: 'XP Earned',       value: fmt.n(totalXp),        unit: 'across the leaderboard',  icon: 'bolt' },
+    { label: 'Badges Held',     value: fmt.n(badgesHeld),     unit: `${badges.length} to unlock`, icon: 'military_tech' },
+  ];
+  render('#stats', stats.map((s) => html`
+    <div class="card p-4 lg:p-6">
+      <span class="material-symbols-outlined icon-filled text-orange-500 mb-2 lg:mb-3">${s.icon}</span>
+      <p class="text-label-md text-on-surface-variant uppercase tracking-wide">${s.label}</p>
+      <p class="text-headline-md text-on-surface mt-1 leading-tight">${s.value}</p>
+      <p class="text-label-sm text-on-surface-variant mt-0.5">${s.unit}</p>
+    </div>
+  `).join(''));
+
+  // --- Champion ------------------------------------------------------------
+  const champ = departments[0];
+  render('#champion', champ ? html`
+    <div class="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-orange-500/10"></div>
+    <div class="relative">
+      <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-500 text-white text-label-sm font-bold uppercase tracking-wide">
+        <span class="material-symbols-outlined icon-filled text-base">trophy</span> Rank 1
+      </span>
+      <div class="mt-6 w-16 h-16 rounded-2xl bg-yellow-400 text-yellow-950 flex items-center justify-center
+                  text-headline-md font-bold ring-4 ring-yellow-200">
+        ${esc(champ.code ?? initials(champ.name))}
+      </div>
+      <h3 class="mt-4 text-headline-md text-on-surface leading-tight break-words">${esc(champ.name)}</h3>
+      <p class="text-body-md text-on-surface-variant">${fmt.n(champ.employees)} employees participating</p>
+      <p class="mt-4 text-display-lg leading-none ${scoreColor(champ.score)}">${fmt.n(champ.score, 1)}</p>
+      <p class="text-label-md text-on-surface-variant mt-1">Overall ESG score</p>
+      <dl class="mt-5 pt-4 border-t border-outline-variant/50 grid grid-cols-3 gap-2 text-center">
+        ${[['E', champ.environmental], ['S', champ.social], ['G', champ.governance]].map(([k, v]) => html`
+          <div>
+            <dt class="text-label-sm text-on-surface-variant uppercase tracking-wide">${k}</dt>
+            <dd class="text-title-lg font-bold tabular-nums ${scoreColor(v)}">${fmt.n(v, 0)}</dd>
+          </div>
+        `).join('')}
+      </dl>
+    </div>
+  ` : emptyState('No departments ranked yet', 'trophy'));
+
+  // --- Department leaderboard ----------------------------------------------
+  const best = Math.max(...departments.map((d) => d.score), 1);
+  render('#dept-board', departments.length ? departments.map((d) => html`
+    <div class="flex items-center gap-3 sm:gap-4 ${d.rank === 1 ? 'bg-orange-50 -mx-2 px-2 py-2 rounded-2xl' : ''}">
+      <span class="w-8 h-8 shrink-0 rounded-full flex items-center justify-center text-label-md font-bold ${medalClass(d.rank)}">
+        ${d.rank}
+      </span>
+      <div class="flex-1 min-w-0">
+        <div class="flex items-baseline justify-between gap-2 mb-1.5">
+          <span class="text-body-md font-semibold text-on-surface truncate">
+            ${esc(d.name)}
+            ${d.rank === 1 ? '<span class="material-symbols-outlined icon-filled text-orange-500 text-base align-middle">trophy</span>' : ''}
+          </span>
+          <span class="text-body-md font-bold tabular-nums shrink-0 ${scoreColor(d.score)}">${fmt.n(d.score, 1)}</span>
+        </div>
+        <div class="h-2 bg-surface-container rounded-full overflow-hidden">
+          <div class="bar-fill h-full rounded-full ${d.rank === 1 ? 'bg-orange-500' : scoreBg(d.score)}"
+               style="width:${(d.score / best) * 100}%"></div>
+        </div>
+        <div class="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5 text-label-sm text-on-surface-variant tabular-nums">
+          <span>E ${fmt.n(d.environmental, 0)}</span>
+          <span>S ${fmt.n(d.social, 0)}</span>
+          <span>G ${fmt.n(d.governance, 0)}</span>
+          <span class="hidden sm:inline">· ${fmt.n(d.employees)} people</span>
+        </div>
+      </div>
+    </div>
+  `).join('') : emptyState('No departments ranked yet', 'leaderboard'));
+
+  // --- Employee leaderboard ------------------------------------------------
+  const top = employees.slice(0, 10);
+  const bestXp = Math.max(...top.map((e) => e.xp), 1);
+  render('#employee-board', top.length ? top.map((e) => html`
+    <div class="flex items-center gap-3 p-3 rounded-2xl border ${
+      e.rank === 1 ? 'border-orange-200 bg-orange-50' : 'border-outline-variant/40'
+    }">
+      <span class="w-7 h-7 shrink-0 rounded-full flex items-center justify-center text-label-sm font-bold ${medalClass(e.rank)}">
+        ${e.rank}
+      </span>
+      <div class="w-10 h-10 shrink-0 rounded-full bg-primary-container text-on-primary-container
+                  flex items-center justify-center text-label-md font-bold">
+        ${esc(initials(e.name))}
+      </div>
+
+      <div class="flex-1 min-w-0">
+        <p class="text-body-md font-semibold text-on-surface truncate">${esc(e.name)}</p>
+        <p class="text-label-sm text-on-surface-variant truncate">
+          ${esc(e.department ?? '—')} · Level ${fmt.n(e.level)}
+        </p>
+        <!-- XP bar doubles as the mobile read of relative standing -->
+        <div class="sm:hidden mt-1.5 h-1.5 bg-surface-container rounded-full overflow-hidden">
+          <div class="bar-fill h-full rounded-full bg-orange-500" style="width:${(e.xp / bestXp) * 100}%"></div>
+        </div>
+      </div>
+
+      <div class="hidden sm:flex items-center gap-4 shrink-0 text-center">
+        <div class="w-12">
+          <p class="text-body-md font-bold text-on-surface tabular-nums">${fmt.n(e.badges)}</p>
+          <p class="text-label-sm text-on-surface-variant">Badges</p>
+        </div>
+        <div class="w-16">
+          <p class="text-body-md font-bold text-on-surface tabular-nums">${fmt.n(e.completed)}</p>
+          <p class="text-label-sm text-on-surface-variant">Done</p>
+        </div>
+      </div>
+
+      <div class="shrink-0 text-right w-20">
+        <p class="text-body-md font-bold text-orange-500 tabular-nums">${fmt.n(e.xp)} XP</p>
+        <p class="sm:hidden text-label-sm text-on-surface-variant tabular-nums">
+          ${fmt.n(e.badges)} badges · ${fmt.n(e.completed)} done
+        </p>
+      </div>
+    </div>
+  `).join('') : emptyState('Nobody has earned XP yet', 'group'));
+
+  // --- Challenges ----------------------------------------------------------
+  const open = challenges.filter((c) => c.status === 'open');
+  const list = open.length ? open : challenges;
+  render('#challenges', list.length ? list.map((c) => {
+    const submissions = c.submissions ?? 0;
+    const approved = c.approved ?? 0;
+    const pct = submissions ? Math.min(100, (approved / submissions) * 100) : 0;
+    return html`
+      <a href="/social"
+         class="card p-5 lg:p-6 flex flex-col hover:shadow-md hover:border-orange-200 transition-all group">
+        <div class="flex items-start justify-between gap-3 mb-4">
+          <div class="w-12 h-12 shrink-0 rounded-2xl bg-orange-100 flex items-center justify-center">
+            <span class="material-symbols-outlined icon-filled text-orange-500">${esc(c.icon || 'rocket_launch')}</span>
+          </div>
+          <span class="px-2.5 py-1 rounded-full bg-surface-container text-on-surface-variant
+                       text-label-sm font-bold text-right break-words">${esc(c.category ?? '')}</span>
+        </div>
+
+        <h4 class="text-title-lg text-on-surface leading-snug group-hover:text-orange-500 transition-colors break-words">
+          ${esc(c.title)}
+        </h4>
+        <p class="text-body-md text-on-surface-variant mt-1 flex-1 break-words">${esc(c.description ?? '')}</p>
+
+        <div class="flex items-center gap-4 mt-4 text-label-md font-bold">
+          <span class="flex items-center gap-1 text-orange-500">
+            <span class="material-symbols-outlined icon-filled text-base">bolt</span>${fmt.n(c.xp)} XP
+          </span>
+          <span class="flex items-center gap-1 text-on-surface-variant">
+            <span class="material-symbols-outlined text-base">stars</span>${fmt.n(c.points)} pts
+          </span>
+          <span class="ml-auto text-label-sm text-on-surface-variant font-medium whitespace-nowrap">
+            ends ${fmt.date(c.end_date)}
+          </span>
+        </div>
+
+        <div class="mt-4 pt-4 border-t border-outline-variant/50">
+          <div class="flex items-baseline justify-between text-label-md mb-1.5">
+            <span class="text-on-surface-variant">Approved</span>
+            <span class="font-bold text-on-surface tabular-nums">${fmt.n(approved)} / ${fmt.n(submissions)}</span>
+          </div>
+          <div class="h-2 bg-surface-container rounded-full overflow-hidden">
+            <div class="bar-fill h-full rounded-full bg-orange-500" style="width:${pct}%"></div>
+          </div>
+        </div>
+      </a>
+    `;
+  }).join('') : emptyState('No challenges are running', 'rocket_launch'));
+
+  // --- Badges --------------------------------------------------------------
+  const holderMax = Math.max(...badges.map((b) => b.holders ?? 0), 1);
+  render('#badges', badges.length ? badges.map((b) => {
+    const t = tierOf(b.tier);
+    const holders = b.holders ?? 0;
+    const locked = holders === 0; // nobody has crossed the threshold yet
+    return html`
+      <div class="relative p-5 rounded-3xl border border-outline-variant/60 bg-surface-container-lowest
+                  flex gap-4 overflow-hidden ${locked ? 'opacity-70' : ''}">
+        <div class="absolute inset-x-0 top-0 h-1" style="background:${t.grad}"></div>
+
+        <div class="w-14 h-14 shrink-0 rounded-full flex items-center justify-center shadow-sm"
+             style="background:${t.grad}">
+          <span class="material-symbols-outlined icon-filled text-2xl text-white"
+                style="text-shadow:0 1px 2px rgba(0,0,0,.25)">${esc(b.icon || 'military_tech')}</span>
+        </div>
+
+        <div class="min-w-0 flex-1">
+          <div class="flex items-center gap-2 flex-wrap">
+            <h4 class="text-body-lg font-bold text-on-surface break-words">${esc(b.name)}</h4>
+            <span class="px-2 py-0.5 rounded-full text-label-sm font-bold uppercase tracking-wide ${t.chip}">
+              ${t.label}
+            </span>
+          </div>
+          <p class="text-body-md text-on-surface-variant mt-1 break-words">${esc(b.description ?? '')}</p>
+
+          <div class="flex items-center justify-between gap-2 mt-3 text-label-md">
+            <span class="font-bold tabular-nums" style="color:${t.text}">${fmt.n(b.xp_threshold)} XP</span>
+            <span class="text-on-surface-variant tabular-nums">
+              ${locked ? 'Not yet earned' : `${fmt.n(holders)} holder${holders === 1 ? '' : 's'}`}
+            </span>
+          </div>
+          <div class="mt-1.5 h-1.5 bg-surface-container rounded-full overflow-hidden">
+            <div class="bar-fill h-full rounded-full"
+                 style="width:${(holders / holderMax) * 100}%;background:${t.grad}"></div>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('') : emptyState('No badges configured', 'military_tech'));
+});
+</script>
+</body>
+</html>
