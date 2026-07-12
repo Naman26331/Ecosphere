@@ -1,0 +1,18 @@
+# The database is generated -- run `npm run seed` to build it.
+data/ecosphere.db
+data/ecosphere.db-shm
+data/ecosphere.db-wal
+
+# Uploaded bills and challenge proofs.
+data/uploads/*
+!data/uploads/.gitkeep
+
+# There are no dependencies, but keep this honest if one is ever added.
+node_modules/
+.env
+.DS_Store
+
+# Local agent/editor config -- never share.
+# Covers the whole directory, not just settings.local.json, so anything that
+# lands here later (agents, commands, local settings) stays out of the repo.
+.claude/
