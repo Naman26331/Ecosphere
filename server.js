@@ -71,7 +71,7 @@ const server = createServer(async (req, res) => {
 
     // A signed-in user has no reason to see the login or sign-up screens again.
     const authPage = ['/login', '/login.html', '/register', '/register.html'];
-    if (authPage.includes(pathname) && currentUser(req)) {
+    if (authPage.includes(pathname) && await currentUser(req)) {
       res.writeHead(302, { Location: '/' });
       return res.end();
     }
@@ -110,6 +110,6 @@ const server = createServer(async (req, res) => {
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`\n  EcoSphere Auto-Pilot`);
-  console.log(`  running at  http://0.0.0.0:${PORT}`);
+  console.log(`  running at  http://localhost:${PORT}`);
   console.log(`  AI provider ${process.env.AI_PROVIDER ?? 'rules'} (${process.env.AI_PROVIDER === 'nvidia' ? 'online' : 'offline'})\n`);
 });

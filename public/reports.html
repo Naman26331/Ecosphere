@@ -136,7 +136,7 @@
 
 <script type="module">
 import { api, page, fmt, gauge, drawGauges, areaChart, emptyState, esc, html, render,
-         $, $$, chip, scoreColor, scoreBg, toast } from '/assets/app.js';
+         $, $$, chip, scoreColor, scoreBg, toast, me } from '/assets/app.js';
 
 page('reports', {
   title: 'Impact Reports',
@@ -423,7 +423,7 @@ page('reports', {
         period: body.period,
         status: 'ready',
         generated_at: res.snapshot?.generated ?? new Date().toISOString(),
-        author: 'Alex Rivera',
+        author: me().name,
       }, ...rows];
       renderReports();
       renderCoverage();

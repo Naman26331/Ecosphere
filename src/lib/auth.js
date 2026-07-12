@@ -109,8 +109,8 @@ export const ADMIN_ROLES = new Set(['admin', 'officer']);
 export const isAdmin = (user) => !!user && ADMIN_ROLES.has(user.role);
 
 /** The user this request belongs to, or null. The single source of truth. */
-export function currentUser(req) {
-  const userId = readToken(parseCookies(req)[SESSION_COOKIE]);
+export async function currentUser(req) {
+  const userId = await readToken(parseCookies(req)[SESSION_COOKIE]);
   if (!userId) return null;
   return get(
     `SELECT u.id, u.name, u.email, u.role, u.department_id, u.xp, u.points_balance,

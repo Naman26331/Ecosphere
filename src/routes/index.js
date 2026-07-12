@@ -96,18 +96,18 @@ export default function registerRoutes(r) {
     // The department has to be a real one. Trusting the id blindly would let
     // someone post department_id: 999 and land in a department that doesn't exist.
     const deptId = num(b.department_id);
-    if (!deptId || !get(`SELECT id FROM departments WHERE id = ?`, [deptId])) {
+    if (!deptId || !(await get(`SELECT id FROM departments WHERE id = ?`, [deptId]))) {
       throw bad('Choose a department.');
     }
 
-    if (get(`SELECT id FROM users WHERE lower(email) = ?`, [email])) {
+    if (await get(`SELECT id FROM users WHERE lower(email) = ?`, [email])) {
       throw bad('An account already exists for that email. Sign in instead.', 409);
     }
 
     // Role is FORCED to employee and never read from the request. Otherwise
     // anyone could POST {"role":"admin"} and sign themselves up as an admin --
     // this is the classic mass-assignment privilege escalation.
-    const { id } = run(
+    const { id } = await run(
       `INSERT INTO users (name, email, role, department_id, xp, points_balance, password_hash)
        VALUES (?, ?, 'employee', ?, 0, 0, ?)`,
       [name, email, deptId, auth.hashPassword(password)]
@@ -115,7 +115,7 @@ export default function registerRoutes(r) {
 
     // The headcount is the denominator of the participation-rate KPI, so a new
     // joiner has to be counted or Social quietly drifts upward.
-    run(
+    await run(
       `UPDATE departments SET employee_count = employee_count + 1 WHERE id = ?`,
       [deptId]
     );
@@ -423,7 +423,7 @@ export default function registerRoutes(r) {
     if (!file) throw bad('No document uploaded');
 
     // 1. AI reads the numbers off the page.
-    const x = ai.extractBill(file);
+    const x = await ai.extractBill(file);
 
     // 2. Match what it read to the emission factor that prices it in CO2e.
     const factor =
@@ -579,7 +579,7 @@ export default function registerRoutes(r) {
       throw bad('You have already submitted proof for this challenge', 409);
     }
 
-    const v = ai.verifyPhoto(file, challenge.category);
+    const v = await ai.verifyPhoto(file, challenge.category);
     const threshold = await gamify.autoApproveThreshold();
     const autoApprove = v.match && v.confidence >= threshold;
     const proofUrl = saveUpload(file);

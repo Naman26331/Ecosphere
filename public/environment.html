@@ -222,7 +222,7 @@
 
 <script type="module">
 import { api, page, fmt, areaChart, barList, emptyState, esc, html, render, $,
-         chip, toast, scoreBg } from '/assets/app.js';
+         chip, toast, scoreBg, me } from '/assets/app.js';
 
 page('environment', {
   title: 'Environmental',
@@ -236,7 +236,7 @@ page('environment', {
 
   $('#dept').innerHTML = options;
   $('#goal-dept').innerHTML = `<option value="">Organisation-wide</option>${options}`;
-  $('#user').innerHTML = `<option value="1">Alex Rivera</option>`;
+  $('#user').innerHTML = `<option value="${me().id}">${esc(me().name)}</option>`;
 
   await refresh();
   wireScanner();
