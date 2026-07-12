@@ -130,6 +130,15 @@ export const sessionCookie = (token) =>
 export const clearCookie = () =>
   `${SESSION_COOKIE}=; HttpOnly; SameSite=Lax${SECURE}; Path=/; Max-Age=0`;
 
+// Access levels. The schema keeps a richer role vocabulary (employee | manager |
+// officer | admin), but access control collapses to a single question: admin, or
+// not? An 'officer' (the org's sustainability lead, e.g. the owner account) and an
+// 'admin' both get the full console; everyone else is an employee for access
+// purposes. Defining it in ONE place means a route can't disagree with the UI
+// about who counts as an admin.
+export const ADMIN_ROLES = new Set(['admin', 'officer']);
+export const isAdmin = (user) => !!user && ADMIN_ROLES.has(user.role);
+
 /** The user this request belongs to, or null. The single source of truth. */
 export function currentUser(req) {
   const userId = readToken(parseCookies(req)[SESSION_COOKIE]);

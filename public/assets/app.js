@@ -275,7 +275,8 @@ const NAV = [
   { id: 'governance',   label: 'Governance',    href: '/governance',   icon: 'gavel',         color: 'text-purple-600' },
   { id: 'gamification', label: 'Gamification',  href: '/gamification', icon: 'military_tech', color: 'text-orange-500' },
   { id: 'reports',      label: 'Reports',       href: '/reports',      icon: 'assessment',    color: 'text-secondary' },
-  { id: 'settings',     label: 'Settings',      href: '/settings',     icon: 'settings',      color: 'text-on-surface-variant' },
+  // Settings is an admin console; hidden from employees after we learn their role.
+  { id: 'settings',     label: 'Settings',      href: '/settings',     icon: 'settings',      color: 'text-on-surface-variant', adminOnly: true },
 ];
 
 // Five fit across a phone; Settings lives in the drawer on mobile.
@@ -306,7 +307,7 @@ export function mountShell(active, { title, subtitle } = {}) {
       <nav class="flex-1 space-y-1">
         ${NAV.map(
           (n) => html`
-            <a href="${n.href}"
+            <a href="${n.href}" ${n.adminOnly ? 'data-admin-only style="display:none"' : ''}
                class="flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors ${
                  n.id === active
                    ? 'bg-surface-container-low text-secondary font-bold border-r-4 border-secondary'
@@ -424,6 +425,13 @@ export const initials = (name) =>
 
 let ME = null;
 export const me = () => ME;
+/** True once the signed-in user is known to be an admin. Pages gate UI on this. */
+export const isAdmin = () => !!ME?.is_admin;
+
+/** Resolves when the shell knows who's signed in -- pages await this before
+ *  deciding whether to render admin-only widgets. */
+let _resolveReady;
+export const userReady = new Promise((r) => (_resolveReady = r));
 
 async function hydrateUser() {
   try {
@@ -437,9 +445,18 @@ async function hydrateUser() {
     $('#nav-role').textContent = user.department
       ? `${user.role} · ${user.department}`
       : user.role;
+
+    // Admin-only chrome starts at display:none (inline, so it beats any Tailwind
+    // display class) and is revealed only for admins -- an employee never even
+    // sees a flash of the Settings link.
+    if (user.is_admin) {
+      $$('[data-admin-only]').forEach((el) => (el.style.display = ''));
+    }
   } catch {
     // The session died under us (expired, or signed out in another tab).
     location.href = '/login';
+  } finally {
+    _resolveReady?.(ME);
   }
 }
 

@@ -11,6 +11,7 @@
     "start": "node --no-warnings server.js",
     "dev": "node --no-warnings --watch server.js",
     "seed": "node --no-warnings src/seed.js",
-    "reset": "rm -f data/ecosphere.db && npm run seed"
+    "reset": "rm -f data/ecosphere.db && npm run seed",
+    "make-admin": "node --no-warnings src/make-admin.js"
   }
 }

@@ -52,6 +52,33 @@
       <div id="leaderboard" class="space-y-4"></div>
     </section>
 
+    <!-- Engagement Report -- admin only. Starts hidden; the shell reveals it for
+         admins, and the script below only fetches it once it knows you're one. -->
+    <section class="card p-6 lg:p-8" data-admin-only style="display:none">
+      <div class="flex items-start justify-between mb-6 gap-4">
+        <div>
+          <h3 class="text-title-lg text-on-surface">Engagement Report</h3>
+          <p class="text-body-md text-on-surface-variant">
+            Employees with no points, or no activity in the last 30 days
+          </p>
+        </div>
+        <span id="engagement-summary" class="text-label-md font-bold text-on-surface-variant whitespace-nowrap"></span>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left min-w-[560px]">
+          <thead class="bg-surface-container-high">
+            <tr>
+              <th class="px-4 py-3 text-label-sm text-on-surface-variant uppercase tracking-wider">Employee</th>
+              <th class="px-4 py-3 text-label-sm text-on-surface-variant uppercase tracking-wider">Department</th>
+              <th class="px-4 py-3 text-label-sm text-on-surface-variant uppercase tracking-wider text-right">Days Since Activity</th>
+              <th class="px-4 py-3 text-label-sm text-on-surface-variant uppercase tracking-wider text-right">Total XP</th>
+            </tr>
+          </thead>
+          <tbody id="engagement-body" class="divide-y divide-outline-variant"></tbody>
+        </table>
+      </div>
+    </section>
+
     <!-- Activity + quick actions -->
     <section class="grid grid-cols-1 lg:grid-cols-3 gap-gutter">
       <div class="card p-6 lg:p-8 lg:col-span-2">
@@ -94,7 +121,31 @@
 
 <script type="module">
 import { api, page, fmt, gauge, drawGauges, areaChart, esc, html, render, $,
-         scoreColor, scoreBg, openChat } from '/assets/app.js';
+         scoreColor, scoreBg, openChat, userReady, isAdmin, emptyState } from '/assets/app.js';
+
+// The Engagement Report is admin-only. Wait until the shell knows who's signed in,
+// then fetch it only for admins -- an employee never even makes the request.
+async function loadEngagement() {
+  await userReady;
+  if (!isAdmin()) return;
+
+  const r = await api.get('/api/admin/engagement');
+  $('#engagement-summary').textContent =
+    `${r.lacking_count} of ${r.total_employees} lacking`;
+
+  render('#engagement-body', r.employees.length ? r.employees.map((e) => html`
+    <tr class="hover:bg-surface-container-low transition-colors">
+      <td class="px-4 py-3 text-body-md font-semibold text-on-surface">${esc(e.name)}</td>
+      <td class="px-4 py-3 text-body-md text-on-surface-variant">${esc(e.department)}</td>
+      <td class="px-4 py-3 text-right">
+        ${e.days_since_activity === null
+          ? '<span class="text-label-sm font-bold px-2 py-1 rounded-full bg-error-container text-on-error-container">Never active</span>'
+          : `<span class="text-body-md tabular-nums ${e.days_since_activity > 30 ? 'text-error font-semibold' : 'text-on-surface'}">${e.days_since_activity} days</span>`}
+      </td>
+      <td class="px-4 py-3 text-body-md text-on-surface text-right tabular-nums">${fmt.n(e.xp)}</td>
+    </tr>
+  `).join('') : `<tr><td colspan="4">${emptyState('Everyone is engaged — nobody is lacking off.', 'task_alt')}</td></tr>`);
+}
 
 page('dashboard', {
   title: 'Main Dashboard',
@@ -261,6 +312,7 @@ page('dashboard', {
   );
 
   drawGauges();
+  loadEngagement().catch(() => {}); // admin-only; silent no-op for employees
 });
 </script>
 </body>

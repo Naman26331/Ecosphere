@@ -31,7 +31,9 @@
     </section>
 
     <!-- ================= APPROVAL QUEUE ================= -->
-    <section class="card overflow-hidden">
+    <!-- Approving proof awards points, so it's an admin action. Starts hidden;
+         the shell reveals it only for admins after the role is known. -->
+    <section class="card overflow-hidden" data-admin-only style="display:none">
       <div class="px-6 lg:px-8 py-5 border-b border-outline-variant flex items-center justify-between gap-4">
         <div class="min-w-0">
           <h3 class="text-title-lg text-on-surface">Employee Participation Approval</h3>

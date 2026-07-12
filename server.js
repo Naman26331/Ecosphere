@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 
 import { migrate, get } from './src/db.js';
 import { createRouter, serveStatic, json } from './src/lib/http.js';
-import { currentUser } from './src/lib/auth.js';
+import { currentUser, isAdmin } from './src/lib/auth.js';
 import registerRoutes from './src/routes/index.js';
 
 const root = dirname(fileURLToPath(import.meta.url));
@@ -71,6 +71,15 @@ const server = createServer(async (req, res) => {
     // A signed-in user has no reason to see the login or sign-up screens again.
     const authPage = ['/login', '/login.html', '/register', '/register.html'];
     if (authPage.includes(pathname) && currentUser(req)) {
+      res.writeHead(302, { Location: '/' });
+      return res.end();
+    }
+
+    // Admin-only PAGES: an employee who types /settings is bounced home. The API
+    // routes behind them are gated independently (requireAdmin), so this is about
+    // not showing a page whose every action would 403 anyway.
+    const adminPages = ['/settings', '/settings.html'];
+    if (adminPages.includes(pathname) && !isAdmin(req.user)) {
       res.writeHead(302, { Location: '/' });
       return res.end();
     }

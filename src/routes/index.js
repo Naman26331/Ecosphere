@@ -18,6 +18,14 @@ const UPLOADS = join(process.cwd(), 'data', 'uploads');
 mkdirSync(UPLOADS, { recursive: true });
 
 const bad = (msg, status = 400) => Object.assign(new Error(msg), { status });
+
+// Server-side admin gate. The UI hides admin-only buttons from employees, but
+// hiding a button is cosmetic -- anyone can still POST to the endpoint directly.
+// THIS is the line that actually enforces it. 403, not 404: the caller is
+// authenticated, they're just not allowed.
+const requireAdmin = (req) => {
+  if (!auth.isAdmin(req.user)) throw bad('This action requires an admin account.', 403);
+};
 const num = (v) => (v === undefined || v === null || v === '' ? null : Number(v));
 
 /** Persist an upload and hand back the URL the browser will load it from. */
@@ -56,7 +64,9 @@ export default function registerRoutes(r) {
   r.get('/api/auth/me', (req) => {
     const user = auth.currentUser(req);
     if (!user) throw bad('Not signed in', 401);
-    return { user };
+    // is_admin is computed here so the front end never has to know the role
+    // vocabulary -- it just asks "am I an admin?" and hides UI accordingly.
+    return { user: { ...user, is_admin: auth.isAdmin(user) } };
   });
 
   /**
@@ -176,6 +186,104 @@ export default function registerRoutes(r) {
   r.get('/api/audit-log', () =>
     all(`SELECT * FROM audit_log ORDER BY id DESC LIMIT 100`)
   );
+
+  // =========================================================================
+  // ADMIN
+  // =========================================================================
+
+  /**
+   * Engagement Report -- employees who are "lacking off".
+   *
+   * The spec's definition: 0 approved participations, OR no proof submitted in
+   * the last 30 days. We compute both signals per employee and surface anyone who
+   * trips either one, worst offenders first (longest since any activity).
+   *
+   * `officer`/`admin` accounts are excluded -- they're the ones reading the
+   * report, not the workforce being measured by it.
+   */
+  r.get('/api/admin/engagement', (req) => {
+    requireAdmin(req);
+    const rows = all(
+      `SELECT u.id, u.name, d.name AS department, u.xp,
+              -- most recent proof this person submitted, across all challenges
+              MAX(p.submitted_at) AS last_activity,
+              COUNT(CASE WHEN p.status = 'approved' THEN 1 END) AS approved_count,
+              COALESCE(SUM(CASE WHEN p.status = 'approved' THEN c.points END), 0) AS points_earned
+         FROM users u
+         LEFT JOIN departments d    ON d.id = u.department_id
+         LEFT JOIN participations p ON p.user_id = u.id
+         LEFT JOIN challenges c     ON c.id = p.challenge_id
+        WHERE u.role NOT IN ('admin', 'officer')
+        GROUP BY u.id`
+    );
+
+    const now = Date.now();
+    const daysSince = (iso) =>
+      iso ? Math.floor((now - new Date(iso.replace(' ', 'T') + 'Z')) / 86400000) : null;
+
+    const enriched = rows.map((u) => {
+      const days = daysSince(u.last_activity);
+      // "Lacking off" = never earned anything, or nothing submitted in 30 days.
+      const lacking = u.points_earned === 0 || days === null || days > 30;
+      return {
+        id: u.id,
+        name: u.name,
+        department: u.department ?? '—',
+        xp: u.xp,
+        points_earned: u.points_earned,
+        days_since_activity: days,          // null = never participated
+        last_activity: u.last_activity,
+        lacking,
+      };
+    });
+
+    const lacking = enriched
+      .filter((u) => u.lacking)
+      // never-active first, then longest-idle first
+      .sort((a, b) => (b.days_since_activity ?? 1e9) - (a.days_since_activity ?? 1e9));
+
+    return {
+      total_employees: enriched.length,
+      lacking_count: lacking.length,
+      engaged_count: enriched.length - lacking.length,
+      employees: lacking,
+    };
+  });
+
+  /** Promote or demote a user. Admin-only counterpart to the make-admin CLI. */
+  r.post('/api/admin/users/:id/role', async (req) => {
+    requireAdmin(req);
+    const id = Number(req.params.id);
+    const { role } = await readJson(req);
+    if (!['admin', 'employee', 'manager', 'officer'].includes(role)) {
+      throw bad('Invalid role.');
+    }
+    const target = get(`SELECT id, name, role FROM users WHERE id = ?`, [id]);
+    if (!target) throw bad('User not found', 404);
+
+    // Don't let the last admin strip their own admin rights and lock everyone out.
+    if (auth.isAdmin(target) && !auth.ADMIN_ROLES.has(role)) {
+      const admins = get(
+        `SELECT COUNT(*) AS n FROM users WHERE role IN ('admin', 'officer')`
+      ).n;
+      if (admins <= 1) throw bad('Cannot demote the only admin.', 409);
+    }
+
+    run(`UPDATE users SET role = ? WHERE id = ?`, [role, id]);
+    audit(req.user.name, 'role_changed', 'user', id, `${target.role} -> ${role}`);
+    return { id, role };
+  });
+
+  /** The workforce, for the admin user-management view. Admin-only. */
+  r.get('/api/admin/users', (req) => {
+    requireAdmin(req);
+    return all(
+      `SELECT u.id, u.name, u.email, u.role, u.xp, u.points_balance,
+              d.name AS department
+         FROM users u LEFT JOIN departments d ON d.id = u.department_id
+        ORDER BY u.role IN ('admin','officer') DESC, u.name`
+    );
+  });
 
   // =========================================================================
   // ENVIRONMENTAL
@@ -516,8 +624,9 @@ export default function registerRoutes(r) {
     };
   });
 
-  /** Manager override. This is what makes the AI advisory rather than final. */
+  /** Admin override of the AI's decision. This is what makes the AI advisory. */
   r.post('/api/participations/:id/review', async (req) => {
+    requireAdmin(req); // approving someone's proof awards points -- admins only
     const id = Number(req.params.id);
     const b = await readJson(req);
     const actor = req.user?.name ?? b.actor ?? 'System';
@@ -947,6 +1056,7 @@ export default function registerRoutes(r) {
    * score built on weights that don't add up is not a score.
    */
   r.put('/api/settings', async (req) => {
+    requireAdmin(req); // ESG weights + AI thresholds are org config -- admins only
     const b = await readJson(req);
     const entries = Object.entries(b.settings ?? {});
     if (!entries.length) throw bad('No settings supplied');
